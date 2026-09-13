@@ -139,7 +139,7 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
   - The result's `responses[0]` has `nullifier` and `signal_hash`.
 
   Original task: Read the current IDKit and Selfie Check docs (`docs.world.org/world-id/idkit/integrate`, `docs.idkit.com`) and confirm the package name/version, the widget API, and the cloud-verify endpoint for Selfie Check. *(me)*
-- [ ] **W1** IDKit widget in the client, with signal set to the player address. **Needs:** W0, E8. *(me)*
+- [x] **W1** (done in `components/booth/WorldGate.tsx`) IDKit widget in the client, with signal set to the player address. **Needs:** W0, E8. *(me)*
 - [ ] **W2** One real Selfie Check in the Sandbox, end to end. **Needs:** W1, A2. *(you)*
 - [ ] **W3** `FEEDBACK.md` for the World track. **Needs:** W2. *(you, with me drafting)*
 
@@ -164,7 +164,14 @@ Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole s
 
 ## 6. Subgraph (The Graph)
 
-- [ ] **S1** `subgraph/`: `schema.graphql` (Game, Player, JobStat), `subgraph.yaml` (network `arc-testnet`, vault address, start block), mappings in `src/vault.ts`, with `@graphprotocol/graph-cli` as a local devDependency (no global install). **Needs:** C4, C5. *(free)*
+- [x] **S1** `subgraph/` builds (`pnpm codegen && pnpm build`). graph-cli 0.98.1 and graph-ts 0.38.2 are local devDependencies.
+  - Network `arc-testnet`, vault `0xFca0â€¦6878`, startBlock `61860113`, `prune: never` (the prior needs full history).
+  - Entities:
+    - **`Game`**: status, outcome, jobCode, guessCode, seed, answers, settledBlock, and the start/guess/settle tx hashes.
+    - **`Player`**: game counts (played, wins, pushes, losses), total staked and total paid out.
+    - **`JobStat`**: per-occupation counts of revealed games, Seer wins, pushes and player wins.
+    - **`Vault`**: live pot and totals.
+  - Matches the query in `web/lib/server/prior.ts`. *(me)*
 - [ ] **S2** `graph auth` and `graph deploy` to Studio, then put the query URL in `.env.local`. **Needs:** S1, E9. *(you + me)*
 - [ ] **S3** Show that the first question changes once history exists. Capture it for the demo. **Needs:** S2, A5. *(free)*
 
