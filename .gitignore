@@ -22,9 +22,7 @@ contracts/broadcast/**/dry-run/
 subgraph/generated/
 subgraph/build/
 
-# Grostel is a personal-use demo font: not redistributed in this public repo.
-# Drop GrostelRegular-V43ye.ttf into web/assets/fonts/grostel/ locally (see README).
-web/assets/fonts/grostel/
+# Grostel (demo license) is committed so Vercel can build from git; the original download zip isn't.
 web/assets/fonts/grostel-font.zip
 
 # os / editor
@@ -35,3 +33,6 @@ Thumbs.db
 
 # raw generated art (~45MB); web-ready versions are produced by art/process_art.py
 art/source/
+
+# vercel (project link for CLI deploys)
+.vercel

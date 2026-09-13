@@ -1,0 +1,11 @@
+# For CLI deploys from the repo root (the Vercel project's Root Directory is web/): upload only the web app.
+/*
+!/web
+**/node_modules
+web/.next
+web/.vercel
+web/.env*
+web/*.tsbuildinfo
+web/next-env.d.ts
+web/scripts/sim-results.txt
+web/assets/fonts/grostel-font.zip
