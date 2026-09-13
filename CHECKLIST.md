@@ -1,0 +1,185 @@
+# Guessworker — build checklist
+
+Source plan: `C:\Users\rajde\.claude\plans\ethglobal-ethonline-2026-hackathon-hashed-wren.md`
+
+Legend: `[x]` done · `[~]` in progress · `[ ]` open.
+**Owner** says who holds it right now:
+- `me`: the main Claude session
+- `you`: needs a human (logins, keys, wallets, recording)
+- `free`: open to delegate
+
+Every task lists what it depends on (**Needs**) and the files it touches. An agent picking up a task should only need the task text and the "Shared decisions" section below.
+
+---
+
+## Shared decisions (read before picking up any task)
+
+- **Chain:** Arc testnet, chain ID `5042002`, RPC `https://rpc.testnet.arc.network`, explorer `https://testnet.arcscan.app`, faucet `https://faucet.circle.com`.
+- **Money:** native USDC is the gas token with **18 decimals**, so amounts are plain `msg.value` / `ether` units. The ERC-20 interface at `0x3600000000000000000000000000000000000000` uses 6 decimals and is **not used**.
+- **Stake:** set in the constructor. Demo value **1 USDC** (the faucet is too stingy for 10). The pot is seeded with 5 USDC via `seedPot()`.
+- **Payouts:**
+
+  | Outcome | Rule | Money |
+  |---|---|---|
+  | `AgentWin` (1) | exact code match | 5% rake to agent, 95% to pot |
+  | `Push` (2) | same `code / 10` family | 90% refunded, 10% to pot |
+  | `PlayerWin` (3) | anything else | stake + 50% of pot |
+  | `Forfeit` (4) | no reveal before the timeout | stake to pot |
+  | `Refund` (5) | agent never guessed | stake back to player |
+
+- **Job commit:** `keccak256(abi.encode(uint16 jobCode, bytes32 salt))`. The salt is random, and the client keeps it in `localStorage` keyed by `gameId`.
+- **Seed:** stateless. The server derives `seed = keccak256(abi.encode(AGENT_SEED_SECRET, jobCommit, nullifierHash))` and publishes `seedCommit = keccak256(abi.encode(seed))`, so no database is needed.
+- **Start signature:** the agent key signs an EIP-191 personal message over `keccak256(abi.encode(chainid, vault, player, jobCommit, seedCommit, nullifierHash, expiry))`. This one signature covers both World ID eligibility and the seed binding.
+- **Transcript on-chain:** `submitGuess` also takes `bytes10 answers`, one byte per question (0 = No, 1 = Probably Not, 2 = Probably, 3 = Yes). Questions are re-derived from seed + answers, so any game can be replayed from chain data alone.
+- **Deterministic prior:** the solver prior comes from the subgraph's settled games **as of the game's `startBlock`** (a Graph time-travel query), so replays stay exact even as history grows.
+- **Quota:** 3 games per World ID nullifier per UTC day (`block.timestamp / 1 days`).
+- **Timeouts:** guess within 30 min of start, otherwise `refund`. Reveal within 30 min of the guess, otherwise `forfeit`.
+- **Solver:** **10 questions**, softmax temperature **0.03**, over 66 jobs × 24 traits. Answer model: Yes = 0.75p + 0.0125, Probably = 0.2p + 0.0125, Probably Not = 0.2(1-p) + 0.0125, No = 0.75(1-p) + 0.0125. The next question is picked by a softmax over information gain, using a PRNG seeded from `${seed}:${step}`. The guess is the posterior argmax, with ties going to the lower index.
+  - **Calibration** (`scripts/sim.ts`, noisy synthetic players): Seer exact about 48%, push about 7%, player wins about 45%.
+  - Because a win pays 50% of the pot, the pot stays solvent at any rate. It settles near 2× the stake, and the house edge is roughly 2%.
+  - The original 6-question plan only got the Seer to 12% exact, which is why the budget was raised.
+  - **Do not change these constants without re-running the sim.** Replays depend on them.
+- **Agent economy:** `submitGuess` takes `operatingCost` (USDC wei). Its gas cost plus a flat compute fee are recorded on-chain in `agentOperatingCost`. Rake accumulates in `agentRevenue`, and the agent wallet pays its own gas.
+- **Web:** Next.js **16.3.5** (App Router), React 19, Tailwind 4. Next 16 has breaking changes, so read `web/node_modules/next/dist/docs/` before writing routes or config.
+- **Fonts:** Grostel (`web/assets/fonts/grostel/GrostelRegular-V43ye.ttf`, has every glyph including digits and `$`) is `--font-brand`. Playfair Display via `next/font/google` is `--font-text`. The Grostel license is **Demo**, so it's fine for the hackathon only.
+- **Theme tokens:**
+
+  | Token | Hex |
+  |---|---|
+  | ink | `#15111F` |
+  | soot | `#231C31` |
+  | parchment | `#EDE3CC` |
+  | faded | `#B9AD93` |
+  | verdigris | `#3FB6A8` |
+  | ember | `#E2A83B` |
+  | hex | `#C4472D` |
+  | moss | `#7FA36B` |
+
+  The mood is a fortune-teller's study, **not** purple-gradient AI. Build UI with the `/impeccable`, `/frontend-design` and `/animate` skills, and respect `prefers-reduced-motion`.
+- **Mascot slots:** `web/public/mascot/{idle,thinking,confident,stumped,triumphant}.png`. The user supplies these. Use an SVG placeholder of the same size until they arrive.
+
+---
+
+## 0. Environment
+
+- [x] **E1** Verify Arc testnet RPC and chain ID: `eth_chainId` returned `0x4cef52`. *(me)*
+- [x] **E2** Confirm native USDC decimals: 18 native, 6 for the ERC-20 interface. *(me)*
+- [x] **E3** Copy and extract the Grostel zip into `web/assets/fonts/grostel/`. *(me)*
+- [x] **E4** Check Grostel glyph coverage: nothing missing, 397 glyphs. *(me)*
+- [x] **E5** Scaffold Next.js app in `web/`. *(me)*
+- [x] **E6** Scaffold Foundry project in `contracts/`. *(me)*
+- [ ] **E7** Create two wallets, **player** and **agent**, and fund both from the Circle faucet. The agent needs gas, and the deployer needs about 6 USDC for the pot seed. *(you)*
+- [ ] **E8a — URGENT BLOCKER** Request **Selfie Check (Beta)** access for the World app. It is required even for sandbox testing ([docs](https://docs.world.org/world-id/sandbox/testing-selfie-check)).
+  - Ask the World sponsor in the ETHOnline Discord or partner channel, or email developers@toolsforhumanity.com.
+  - The wait is outside our control, so do this first.
+  - Until it's granted, the app runs with the fallback preset (`NEXT_PUBLIC_WORLD_PRESET=proofOfHuman`). *(you)*
+- [ ] **E8** World Developer Portal: create an app and an action `play-guessworker` with unlimited verifications.
+  - Note `app_id` and `rp_id`.
+  - Generate the **RP signing key**: IDKit v4 needs a server-signed `rp_context`. *(you)*
+- [ ] **E9** Subgraph Studio: create subgraph `guessworker` and copy the deploy key. *(you)*
+- [ ] **E10** Fill in `web/.env.local` (see `web/.env.example`, created in A1): `AGENT_PRIVATE_KEY`, `AGENT_SEED_SECRET`, `NEXT_PUBLIC_WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `NEXT_PUBLIC_WORLD_ACTION`, `NEXT_PUBLIC_WORLD_PRESET`, `NEXT_PUBLIC_VAULT_ADDRESS`, `NEXT_PUBLIC_SUBGRAPH_URL`. *(you)*
+- [ ] **E11** Set up a root git repo and `.gitignore`. The Graph track requires an open-source repo. *(free)*
+
+## 1. Matrix and solver
+
+- [x] **M1** `web/lib/matrix.json`: ~66 jobs (4-digit ISCO-08 codes, several sharing a 3-digit family) × 24 traits, each with question text and per-job probabilities. *(me)*
+- [x] **M2** `web/lib/solver.ts`: prior, posterior update, information gain, seeded softmax pick, `nextQuestion(seed, answers, prior)`, `finalGuess(...)`. Pure TS, no deps. **Needs:** M1. *(me)*
+- [x] **M3** `web/scripts/sim.ts`: simulate N games with noisy synthetic players and print the exact/push/miss rates. Target roughly 55/28/17; tune the question count or softmax temperature to get there. Run with `node web/scripts/sim.ts`. **Needs:** M2. *(free)*
+- [ ] **M4** Publish `keccak256(matrix.json)` in the README. **Needs:** M1 final. *(free)*
+- [ ] **M5** `web/scripts/replay.ts`: given `gameId`, read seed, answers and `startBlock` from chain, rebuild the prior via the subgraph at that block, rerun the solver, and assert that the guess matches. **Needs:** M2, C4, S2. *(free)*
+- [x] **M6** Find the jobs the solver misses most often, to use in the player-win demo take. Hardest jobs at the final settings (full list in `web/scripts/sim-results.txt`):
+
+  | Code | Job | Miss rate |
+  |---|---|---|
+  | 2431 | Marketing Specialist | 86% |
+  | 2642 | Journalist | 86% |
+  | 2432 | PR Specialist | 85% |
+  | 2421 | Management Consultant | 84% |
+  | 7411 | Electrician | 83% |
+
+  For the agent-win take, pick a distinctive job such as Firefighter, Airline Pilot or Chef. *(me)*
+
+## 2. Contract
+
+- [x] **C1** `contracts/src/GuessworkerVault.sol`, per the shared decisions: `startGame`, `submitGuess`, `reveal`, `forfeit`, `refund`, `seedPot`, views, and events `GameStarted` / `GuessSubmitted` / `Settled` / `PotSeeded`. *(me)*
+- [x] **C2** `contracts/test/GuessworkerVault.t.sol` (**20/20 passing**) covering:
+  - all 3 outcomes
+  - bad salt, bad seed, bad signature, expired signature
+  - quota exhausted
+  - forfeit and refund timing
+  - wrong call order
+  - non-agent `submitGuess`
+
+  **Needs:** C1. *(me)*
+- [x] **C3** `contracts/script/Deploy.s.sol`: deploy with `agent` and `stake`, then `seedPot{value: 5 ether}`. **Needs:** C1. *(me)*
+- [ ] **C4** Deploy to Arc testnet and record the address in `web/.env.local` and `subgraph/subgraph.yaml`. **Needs:** C2 green, E7. *(you + me)*
+- [x] **C5** Export the ABI to `web/lib/abi.ts` and `subgraph/abis/GuessworkerVault.json`. Re-export after any contract change: `jq '.abi' contracts/out/GuessworkerVault.sol/GuessworkerVault.json`. **Needs:** C1. *(me)*
+
+## 3. Server (Next API routes)
+
+- [x] **A1** `web/.env.example`, `web/lib/config.ts` (chain = viem `arcTestnet`, vault address, World config, `GameStatus` / `Outcome` enums) and `web/lib/server/agent.ts` (public + agent wallet clients, `deriveSeed`, `commitSeed`, `signStart`, `readGame`). *(me)*
+- [x] **A2** World and start routes. The verify step is split from signing so the player can verify **before** picking a job:
+  - `app/api/world/rp-context` (GET): signs the IDKit v4 `rp_context`.
+  - `app/api/world/verify` (POST `{player, result}`): checks the signal equals the player address, calls the Portal's v4 verify, and returns `{nullifierHash, token, expiresAt}`. The token is an HMAC and lasts 15 min. `WORLD_DEV_BYPASS=true` skips World for local dev.
+  - `app/api/start` (POST `{player, nullifierHash, token, jobCommit}`): returns `{seedCommit, expiry, sig}`. *(me)*
+- [x] **A3** `web/app/api/question/route.ts` (POST `{gameId, answers}` → `{step, traitIndex, traitId, text, confidence, total}`). Shared loading logic is in `web/lib/server/game.ts`. *(me)*
+- [x] **A4** `web/app/api/guess/route.ts` (POST `{gameId, answers(10)}` → `{guessCode, title, confidence, operatingCost, txHash}`). Idempotent if the game is already guessed. The agent pays gas, and `operatingCost` = estimated gas × gas price + `AGENT_COMPUTE_FEE_WEI`. *(me)*
+- [x] **A5** `web/lib/server/prior.ts`: counts games settled with `settledBlock < startBlock`.
+  - Returns a 503 if the subgraph `_meta.block` is behind `startBlock`, and falls back to a uniform prior when `SUBGRAPH_URL` is empty.
+  - **Subgraph schema contract (S1 must match):** entity `Game` with `jobCode: Int`, `settledBlock: BigInt`, `outcome` as an enum `Outcome { None AgentWin Push PlayerWin Forfeit Refund }`, and `_meta`. *(me)*
+## 4. World ID
+
+- [x] **W0** Findings (confirmed from the installed type definitions, `@worldcoin/idkit` 4.2.3 and `idkit-core` 4.2.4):
+  - IDKit is now **v4**: `@worldcoin/idkit` (React `IDKitRequestWidget`) plus `@worldcoin/idkit-core`.
+  - The client needs an `rp_context` signed on the server with `signRequest()` from `@worldcoin/idkit-core/signing`.
+  - Verify with `POST https://developer.world.org/api/v4/verify/{rp_id}`, forwarding the IDKit result unchanged.
+  - Selfie Check uses the `selfieCheckLegacy({signal})` preset (World ID 3.0). Do **not** pass `allow_legacy_proofs`.
+  - The types say `allow_legacy_proofs` is a **required boolean**. Use `true` with `selfieCheckLegacy`, which is the example in the type docs.
+  - `IDKitRequestWidget` props: `open`, `onOpenChange`, `app_id`, `action`, `rp_context`, `allow_legacy_proofs`, `preset`, `environment?`, `handleVerify?`, `onSuccess`, `onError?`.
+  - The result's `responses[0]` has `nullifier` and `signal_hash`.
+
+  Original task: Read the current IDKit and Selfie Check docs (`docs.world.org/world-id/idkit/integrate`, `docs.idkit.com`) and confirm the package name/version, the widget API, and the cloud-verify endpoint for Selfie Check. *(me)*
+- [ ] **W1** IDKit widget in the client, with signal set to the player address. **Needs:** W0, E8. *(me)*
+- [ ] **W2** One real Selfie Check in the Sandbox, end to end. **Needs:** W1, A2. *(you)*
+- [ ] **W3** `FEEDBACK.md` for the World track. **Needs:** W2. *(you, with me drafting)*
+
+## 5. Frontend
+
+Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole section.
+
+- [ ] **F1** Design context: `teach-impeccable`, tokens, and fonts wired in `web/app/layout.tsx` and `globals.css`. *(me)*
+- [ ] **F2** wagmi + viem providers, injected connector, Arc chain definition. **Needs:** A1. *(me)*
+- [ ] **F3** Landing: live pot (cauldron/orb), agent balance and runway (candle), "Challenge the Seer" CTA. **Needs:** F1, F2. *(me)*
+- [ ] **F4** Verify screen (World ID). **Needs:** W1. *(me)*
+- [ ] **F5** Pick and seal your job: searchable list, salt generation, wax-seal commit animation, `startGame` tx. **Needs:** A2, C4. *(me)*
+- [ ] **F6** Question loop: rune-inked question, four sigil answer buttons, mascot thinking loop. **Needs:** A3. *(me)*
+- [ ] **F7** The Guess: scrying-orb reveal. **Needs:** A4. *(me)*
+- [ ] **F8** Reveal and payout: seal break, `reveal` tx, outcome state (hex/moss), cauldron surge/drain, coin flow. **Needs:** C4. *(me)*
+- [ ] **F9** Recent games from the subgraph. **Needs:** S2. *(free)*
+- [ ] **F10** Mascot component with 5 moods, SVG placeholder until the assets arrive. *(free)*
+- [ ] **F11** Reduced-motion and contrast `/audit` pass. **Needs:** F3–F8. *(free)*
+
+## 6. Subgraph (The Graph)
+
+- [ ] **S1** `subgraph/`: `schema.graphql` (Game, Player, JobStat), `subgraph.yaml` (network `arc-testnet`, vault address, start block), mappings in `src/vault.ts`, with `@graphprotocol/graph-cli` as a local devDependency (no global install). **Needs:** C4, C5. *(free)*
+- [ ] **S2** `graph auth` and `graph deploy` to Studio, then put the query URL in `.env.local`. **Needs:** S1, E9. *(you + me)*
+- [ ] **S3** Show that the first question changes once history exists. Capture it for the demo. **Needs:** S2, A5. *(free)*
+
+## 7. Ship
+
+- [ ] **D1** One real game per outcome (agent win, push, player win) on Arc testnet, with tx hashes saved in `DEMO_NOTES.md`. **Needs:** F8. *(you)*
+- [ ] **D2** Architecture diagram, required by Arc. *(free)*
+- [ ] **D3** README covering: pitch, how it works, provable-fairness replay, matrix hash, v1 trust boundary (off-chain World verify, advisory judge cut), v2 roadmap, sponsor usage per track. *(free)*
+- [ ] **D4** Record the demo: Selfie Check → agent win → player win → explorer → subgraph query. *(you)*
+- [ ] **D5** ETHGlobal submission: 3 partner prizes (Arc, The Graph, World). *(you)*
+- [ ] **D6** After the deadline, between Sep 16 and 30: deploy to Arc Mainnet and update the submission for the bonuses. *(you)*
+
+---
+
+## Cut order if behind
+
+1. Coin-flow and cauldron animations (F8 partial)
+2. Runway candle → plain number (F3 partial)
+3. Recent games (F9)
+4. Subgraph entirely (S1–S3, A5 fallback) → lose the Graph track
+5. **Never cut:** C1–C4, M1–M2, A2–A4, W1–W2, F5–F8, D4
