@@ -78,7 +78,7 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
   - Generate the **RP signing key**: IDKit v4 needs a server-signed `rp_context`. *(you)*
 - [ ] **E9** Subgraph Studio: create subgraph `guessworker` and copy the deploy key. *(you)*
 - [ ] **E10** Fill in `web/.env.local` (see `web/.env.example`, created in A1): `AGENT_PRIVATE_KEY`, `AGENT_SEED_SECRET`, `NEXT_PUBLIC_WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `NEXT_PUBLIC_WORLD_ACTION`, `NEXT_PUBLIC_WORLD_PRESET`, `NEXT_PUBLIC_VAULT_ADDRESS`, `NEXT_PUBLIC_SUBGRAPH_URL`. *(you)*
-- [ ] **E11** Set up a root git repo and `.gitignore`. The Graph track requires an open-source repo. *(free)*
+- [x] **E11** Set up a root git repo and `.gitignore`. The Graph track requires an open-source repo. *(free)* Done: root repo, remote `origin` = github.com/TheRealRajdeep/ethonline, forge-std as a submodule. The Grostel font is **gitignored** because its license is personal-use only, so copy it in locally.
 
 ## 1. Matrix and solver
 
@@ -147,16 +147,16 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
 
 Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole section.
 
-- [ ] **F1** Design context: `teach-impeccable`, tokens, and fonts wired in `web/app/layout.tsx` and `globals.css`. *(me)*
-- [ ] **F2** wagmi + viem providers, injected connector, Arc chain definition. **Needs:** A1. *(me)*
-- [ ] **F3** Landing: live pot (cauldron/orb), agent balance and runway (candle), "Challenge the Seer" CTA. **Needs:** F1, F2. *(me)*
-- [ ] **F4** Verify screen (World ID). **Needs:** W1. *(me)*
-- [ ] **F5** Pick and seal your job: searchable list, salt generation, wax-seal commit animation, `startGame` tx. **Needs:** A2, C4. *(me)*
-- [ ] **F6** Question loop: rune-inked question, four sigil answer buttons, mascot thinking loop. **Needs:** A3. *(me)*
-- [ ] **F7** The Guess: scrying-orb reveal. **Needs:** A4. *(me)*
-- [ ] **F8** Reveal and payout: seal break, `reveal` tx, outcome state (hex/moss), cauldron surge/drain, coin flow. **Needs:** C4. *(me)*
+- [x] **F1** Design context: `teach-impeccable`, tokens, and fonts wired in `web/app/layout.tsx` and `globals.css`. *(me)* Done: `.impeccable.md` and `web/CLAUDE.md` design context, `app/globals.css` tokens and motion, fonts in `app/layout.tsx`.
+- [x] **F2** wagmi + viem providers, injected connector, Arc chain definition. **Needs:** A1. *(me)* Done: `app/providers.tsx` (wagmi v3: `useConnection`, `useConnect().mutateAsync`, `injected()`).
+- [x] **F3** Landing: live pot (cauldron/orb), agent balance and runway (candle), "Challenge the Seer" CTA. **Needs:** F1, F2. *(me)* Done: landing in `components/booth/Booth.tsx`, `components/props/{Cauldron,Candle}.tsx`.
+- [x] **F4** Verify screen (World ID). **Needs:** W1. *(me)* Done: `components/booth/WorldGate.tsx` (`IDKitRequestWidget`, preset from `NEXT_PUBLIC_WORLD_PRESET`, dev-bypass button).
+- [x] **F5** Pick and seal your job: searchable list, salt generation, wax-seal commit animation, `startGame` tx. **Needs:** A2, C4. *(me)* Done: `JobPicker.tsx` and `WaxSeal.tsx` stamp, with salt kept in `lib/commit.ts` localStorage and resume-on-reload.
+- [x] **F6** Question loop: rune-inked question, four sigil answer buttons, mascot thinking loop. **Needs:** A3. *(me)* Done: `QuestionCard.tsx` (ink-in, sigils, 1â€“4 hotkeys, mascot mood).
+- [x] **F7** The Guess: scrying-orb reveal. **Needs:** A4. *(me)* Done: `props/ScryingOrb.tsx`.
+- [x] **F8** Reveal and payout: seal break, `reveal` tx, outcome state (hex/moss), cauldron surge/drain, coin flow. **Needs:** C4. *(me)* Done: `ResultView` in `Booth.tsx`, cracked seal, `props/Coins.tsx` on player win.
 - [ ] **F9** Recent games from the subgraph. **Needs:** S2. *(free)*
-- [ ] **F10** Mascot component with 5 moods, SVG placeholder until the assets arrive. *(free)*
+- [x] **F10** Mascot component with 5 moods, SVG placeholder until the assets arrive. *(free)* Done: `props/Seer.tsx` probes `/public/mascot/<mood>.png` and falls back to the SVG placeholder. **To add art, just drop PNGs in, no code change needed.**
 - [ ] **F11** Reduced-motion and contrast `/audit` pass. **Needs:** F3–F8. *(free)*
 
 ## 6. Subgraph (The Graph)
@@ -164,6 +164,14 @@ Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole s
 - [ ] **S1** `subgraph/`: `schema.graphql` (Game, Player, JobStat), `subgraph.yaml` (network `arc-testnet`, vault address, start block), mappings in `src/vault.ts`, with `@graphprotocol/graph-cli` as a local devDependency (no global install). **Needs:** C4, C5. *(free)*
 - [ ] **S2** `graph auth` and `graph deploy` to Studio, then put the query URL in `.env.local`. **Needs:** S1, E9. *(you + me)*
 - [ ] **S3** Show that the first question changes once history exists. Capture it for the demo. **Needs:** S2, A5. *(free)*
+
+## 6b. Local end-to-end (no wallets or keys needed)
+
+- [x] **L1** `web/scripts/e2e-local.ts` plays full games against a local anvil through the real API, solver and contract. Verified: Firefighter â†’ AgentWin; Marketing Specialist and Airline Pilot â†’ PlayerWin, with correct payouts and pot. To run it:
+  1. `anvil --chain-id 5042002 --port 8546`
+  2. Deploy with `AGENT_ADDRESS=<anvil acct1> forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8546 --broadcast --private-key <anvil acct0>`
+  3. `pnpm dev` with the env vars `NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8546`, `NEXT_PUBLIC_VAULT_ADDRESS=...`, `AGENT_PRIVATE_KEY=<acct1>`, `AGENT_SEED_SECRET=...`, `WORLD_DEV_BYPASS=true`, `NEXT_PUBLIC_WORLD_DEV_BYPASS=true`
+  4. `APP_URL=http://localhost:3000 node scripts/e2e-local.ts 5411 2431` *(me)*
 
 ## 7. Ship
 
