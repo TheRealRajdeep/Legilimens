@@ -108,7 +108,7 @@ contract LegilimensVault {
         emit PotSeeded(msg.sender, msg.value, pot);
     }
 
-    /// @notice Escrow the stake and bind the job commitment, the agent's seed commitment and the World ID nullifier.
+    /// @notice Escrow the stake and bind the job commitment, the agent's seed commitment and the player's daily-quota key.
     /// @param sig Agent signature over (chainid, vault, player, jobCommit, seedCommit, nullifierHash, expiry).
     function startGame(bytes32 jobCommit, bytes32 seedCommit, bytes32 nullifierHash, uint256 expiry, bytes calldata sig)
         external

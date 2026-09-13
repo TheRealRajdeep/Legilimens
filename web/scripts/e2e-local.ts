@@ -1,4 +1,4 @@
-// End-to-end smoke test against a local anvil + `pnpm dev` with WORLD_DEV_BYPASS=true.
+// End-to-end smoke test against a local anvil + `pnpm dev`.
 // Plays one full game per requested job as an honest (noisy) player and prints the settlement.
 //   node scripts/e2e-local.ts [jobCode...]
 import { createPublicClient, createWalletClient, defineChain, http, parseEventLogs, type Hex } from "viem";
@@ -33,13 +33,10 @@ const rand = () => ((seedState = (seedState * 1664525 + 1013904223) % 4294967296
 async function play(jobCode: number) {
   const jobIndex = JOBS.findIndex((j) => j.code === jobCode);
   const job = JOBS[jobIndex];
-  const eligibility = await post<{ nullifierHash: Hex; token: string }>("/api/world/verify", { player: account.address });
   const salt = newSalt();
   const jobCommit = jobCommitment(job.code, salt);
-  const auth = await post<{ seedCommit: Hex; expiry: string; sig: Hex }>("/api/start", {
+  const auth = await post<{ seedCommit: Hex; playerKey: Hex; expiry: string; sig: Hex }>("/api/start", {
     player: account.address,
-    nullifierHash: eligibility.nullifierHash,
-    token: eligibility.token,
     jobCommit,
   });
   const stake = await pub.readContract({ address: VAULT, abi: vaultAbi, functionName: "stake" });
@@ -47,7 +44,7 @@ async function play(jobCode: number) {
     address: VAULT,
     abi: vaultAbi,
     functionName: "startGame",
-    args: [jobCommit, auth.seedCommit, eligibility.nullifierHash, BigInt(auth.expiry), auth.sig],
+    args: [jobCommit, auth.seedCommit, auth.playerKey, BigInt(auth.expiry), auth.sig],
     value: stake,
   });
   const startReceipt = await pub.waitForTransactionReceipt({ hash: startHash });

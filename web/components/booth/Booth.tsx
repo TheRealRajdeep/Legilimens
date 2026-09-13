@@ -15,14 +15,13 @@ import { Coins } from "../props/Coins";
 import { ScryingOrb } from "../props/ScryingOrb";
 import { Seer } from "../props/Seer";
 import { WaxSeal } from "../props/WaxSeal";
-import { api, withRetry, type Eligibility, type GuessResult, type Question } from "./api";
+import { api, withRetry, type GuessResult, type Question } from "./api";
 import { JobPicker } from "./JobPicker";
 import { QuestionCard } from "./QuestionCard";
 import { RecentGames } from "./RecentGames";
 import { Button, ErrorNote, Scroll, TxLink, Whisper } from "./ui";
-import { WorldGate } from "./WorldGate";
 
-type Stage = "landing" | "verify" | "seal" | "questions" | "guess" | "result";
+type Stage = "landing" | "seal" | "questions" | "guess" | "result";
 
 type Settlement = {
   outcome: Outcome;
@@ -48,7 +47,6 @@ export function Booth() {
   const vault = useVault();
 
   const [stage, setStage] = useState<Stage>("landing");
-  const [eligibility, setEligibility] = useState<Eligibility>();
   const [job, setJob] = useState<Job>();
   const [sealState, setSealState] = useState<"unsealed" | "stamping" | "sealed" | "cracked">("unsealed");
   const [game, setGame] = useState<SealedGame>();
@@ -90,7 +88,7 @@ export function Booth() {
           forgetSeal(seal.gameId);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [address, client, game]);
 
   // ---------- landing ----------
@@ -105,7 +103,7 @@ export function Booth() {
       } else if (chainId !== chain.id) {
         await switchChain.mutateAsync({ chainId: chain.id });
       }
-      setStage("verify");
+      setStage("seal");
     } catch (err) {
       fail(err);
     }
@@ -114,21 +112,21 @@ export function Booth() {
   // ---------- seal ----------
 
   async function sealAndStake() {
-    if (!address || !job || !eligibility || !client || vault.stake === undefined) return;
+    if (!address || !job || !client || vault.stake === undefined) return;
     setError(null);
     try {
       if (chainId !== chain.id) await switchChain.mutateAsync({ chainId: chain.id });
       setBusy("The Seer is committing to its seed…");
       const salt = newSalt();
       const jobCommit = jobCommitment(job.code, salt);
-      const auth = await api.start({ player: address, nullifierHash: eligibility.nullifierHash, token: eligibility.token, jobCommit });
+      const auth = await api.start({ player: address, jobCommit });
 
       setBusy("Confirm the stake in your wallet…");
       const hash = await write.mutateAsync({
         address: VAULT_ADDRESS,
         abi: vaultAbi,
         functionName: "startGame",
-        args: [jobCommit, auth.seedCommit, eligibility.nullifierHash, BigInt(auth.expiry), auth.sig],
+        args: [jobCommit, auth.seedCommit, auth.playerKey, BigInt(auth.expiry), auth.sig],
         value: vault.stake,
       });
       setSealState("stamping");
@@ -153,31 +151,29 @@ export function Booth() {
 
   // ---------- questions ----------
 
-  const loadQuestion = useCallback(async (g: SealedGame) => {
-    setBusy("thinking");
-    try {
-      setQuestion(await withRetry(() => api.question(g.gameId, g.answers)));
-      setBusy(null);
-    } catch (err) {
-      fail(err);
-    }
-  }, []);
-
+  // Fetch the next question whenever the transcript grows. State is only set once the request settles,
+  // and a newer answer cancels the stale response.
+  const gameId = game?.gameId;
+  const answers = game?.answers;
   useEffect(() => {
-    if (stage === "questions" && game && game.answers.length < QUESTION_BUDGET && !question && !busy) loadQuestion(game);
-  }, [stage, game, question, busy, loadQuestion]);
+    if (stage !== "questions" || !gameId || !answers || answers.length >= QUESTION_BUDGET) return;
+    let cancelled = false;
+    withRetry(() => api.question(gameId, answers))
+      .then((q) => !cancelled && setQuestion(q))
+      .catch((err) => !cancelled && fail(err));
+    return () => {
+      cancelled = true;
+    };
+  }, [stage, gameId, answers]);
 
   const answer = useCallback(
     async (value: number) => {
-      if (!game || busy) return;
+      if (!game || !question || busy) return;
       const next = { ...game, answers: [...game.answers, value] };
       saveSeal(next);
       setGame(next);
       setQuestion(undefined);
-      if (next.answers.length < QUESTION_BUDGET) {
-        loadQuestion(next);
-        return;
-      }
+      if (next.answers.length < QUESTION_BUDGET) return;
       setStage("guess");
       setBusy("The Seer gazes into the orb…");
       try {
@@ -188,7 +184,7 @@ export function Booth() {
         fail(err);
       }
     },
-    [game, busy, loadQuestion, vault],
+    [game, question, busy, vault],
   );
 
   // ---------- reveal ----------
@@ -239,7 +235,7 @@ export function Booth() {
     setStartTx(undefined);
     setSealState("unsealed");
     setError(null);
-    setStage(eligibility && eligibility.expiresAt > Date.now() / 1000 ? "seal" : "verify");
+    setStage("seal");
   }
 
   // ---------- render ----------
@@ -248,7 +244,7 @@ export function Booth() {
     <main className="min-h-dvh">
       <header className="flex items-center justify-between px-6 py-5 md:px-10">
         <button onClick={() => stage !== "questions" && stage !== "guess" && setStage("landing")} className="brand text-2xl text-parchment">
-          Legilimens
+          🧙‍♂️ Legilimens
         </button>
         <div className="flex items-center gap-5 text-(length:--text-whisper) text-faded">
           {stage !== "landing" ? <Cauldron pot={vault.pot} stake={vault.stake} size="sm" /> : null}
@@ -265,7 +261,6 @@ export function Booth() {
       {stage === "landing" ? (
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-6 md:grid-cols-[1.1fr_0.9fr] md:px-10">
           <div className="space-y-7">
-            <p className="rise text-(length:--text-whisper) uppercase tracking-[0.3em] text-verdigris">Step right up</p>
             <h1 className="brand rise text-(length:--text-marquee) leading-[0.95] text-parchment" style={delay(1)}>
               The Seer will
               <br />
@@ -317,16 +312,6 @@ export function Booth() {
 
       {stage === "landing" || stage === "result" ? <RecentGames /> : null}
 
-      {stage === "verify" && address ? (
-        <WorldGate
-          player={address}
-          onVerified={(e) => {
-            setEligibility(e);
-            setStage("seal");
-          }}
-        />
-      ) : null}
-
       {stage === "seal" ? (
         <section className="mx-auto grid max-w-5xl gap-10 px-6 py-10 md:grid-cols-[1fr_auto] md:items-start">
           <Scroll className="p-6 md:p-10">
@@ -350,7 +335,7 @@ export function Booth() {
         </section>
       ) : null}
 
-      {stage === "questions" ? <QuestionCard question={question} loading={busy === "thinking" || !question} onAnswer={answer} /> : null}
+      {stage === "questions" ? <QuestionCard question={question} loading={!question} onAnswer={answer} /> : null}
 
       {stage === "guess" ? (
         <section className="mx-auto flex max-w-3xl flex-col items-center gap-10 px-6 py-10 text-center">

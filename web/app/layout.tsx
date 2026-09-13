@@ -17,7 +17,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Legilimens — the Seer reads your trade",
+  title: "Legilimens: the Seer reads your trade",
   description: "Stake 1 USDC. Seal your job. The Seer has ten questions to name it, and every seal is kept on-chain.",
 };
 

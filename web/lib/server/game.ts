@@ -33,7 +33,7 @@ export async function loadGame(gameIdRaw: unknown): Promise<{ gameId: bigint; ga
   const game = await readGame(gameId);
   if (game.status === GameStatus.None) throw new RequestError("game not found", 404);
 
-  const seed = deriveSeed(game.jobCommit, game.nullifierHash);
+  const seed = deriveSeed(game.jobCommit, game.playerKey);
   // The indexer usually trails the chain by a few blocks; wait it out here rather than bouncing every client.
   for (let attempt = 0; ; attempt++) {
     try {

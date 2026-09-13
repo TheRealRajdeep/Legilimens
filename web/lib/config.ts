@@ -10,17 +10,6 @@ export const chain = rpcOverride
 export const VAULT_ADDRESS = (process.env.NEXT_PUBLIC_VAULT_ADDRESS ?? "0x0000000000000000000000000000000000000000") as Address;
 export const VAULT_DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_VAULT_DEPLOY_BLOCK ?? "0");
 
-export const WORLD_APP_ID = (process.env.NEXT_PUBLIC_WORLD_APP_ID ?? "app_xxxxx") as `app_${string}`;
-export const WORLD_ACTION = process.env.NEXT_PUBLIC_WORLD_ACTION ?? "play-guessworker";
-export const WORLD_PRESET = (process.env.NEXT_PUBLIC_WORLD_PRESET ?? "selfieCheckLegacy") as
-  | "selfieCheckLegacy"
-  | "deviceLegacy"
-  | "proofOfHuman";
-export const WORLD_ENVIRONMENT = (process.env.NEXT_PUBLIC_WORLD_ENVIRONMENT ?? "production") as
-  | "production"
-  | "staging"
-  | "sandbox";
-
 export const PUBLIC_SUBGRAPH_URL = process.env.NEXT_PUBLIC_SUBGRAPH_URL ?? "";
 
 export const explorerTx = (hash: string) => `${chain.blockExplorers.default.url}/tx/${hash}`;

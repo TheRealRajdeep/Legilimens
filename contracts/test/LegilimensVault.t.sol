@@ -15,7 +15,7 @@ contract LegilimensVaultTest is Test {
     uint256 constant STAKE = 1 ether;
     uint256 constant SEED_POT = 5 ether;
 
-    bytes32 constant NULLIFIER = keccak256("human-1");
+    bytes32 constant NULLIFIER = keccak256("player-1");
     bytes32 constant SALT = keccak256("salt");
     bytes32 constant SEED = keccak256("seed");
 
@@ -295,7 +295,7 @@ contract LegilimensVaultTest is Test {
         vault.startGame{value: STAKE / 2}(jc, sc, NULLIFIER, expiry, sig);
     }
 
-    function test_QuotaPerHumanPerDay() public {
+    function test_QuotaPerPlayerPerDay() public {
         _start(NURSE);
         _start(NURSE);
         _start(NURSE);

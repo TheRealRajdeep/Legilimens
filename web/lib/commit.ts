@@ -10,6 +10,14 @@ export function jobCommitment(jobCode: number, salt: Hex): Hex {
   return keccak256(encodeAbiParameters([{ type: "uint16" }, { type: "bytes32" }], [jobCode, salt]));
 }
 
+/**
+ * The vault's daily quota (3 games a day) is keyed by a bytes32 it calls `nullifierHash`.
+ * The booth fills it with the hash of the player's wallet, so the quota is per wallet.
+ */
+export function playerKey(player: string): Hex {
+  return keccak256(player.toLowerCase() as Hex);
+}
+
 export type SealedGame = {
   gameId: string;
   jobCode: number;

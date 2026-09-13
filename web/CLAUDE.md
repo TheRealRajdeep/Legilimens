@@ -4,9 +4,9 @@
 
 ### Users
 - **ETHGlobal hackathon judges.** They mostly meet the app through a roughly 3-minute demo video, and form an impression in the first 20 seconds.
-- **Crypto-curious players on desktop.** They have a wallet on Arc testnet and the World App on their phone.
+- **Crypto-curious players on desktop.** They have a wallet on Arc testnet.
 
-**Job to be done.** Stake 1 USDC, prove they're human with World ID, seal their job, answer 10 questions, then watch the Seer guess, break the seal and get paid (or not). Each game is short, dramatic and a one-off. They should understand the stakes (the pot) and the fairness (sealed commitments) without reading docs.
+**Job to be done.** Stake 1 USDC, seal their job, answer 10 questions, then watch the Seer guess, break the seal and get paid (or not). Each game is short, dramatic and a one-off. They should understand the stakes (the pot) and the fairness (sealed commitments) without reading docs.
 
 ### Brand Personality
 - **Three words:** theatrical, smug, fair.

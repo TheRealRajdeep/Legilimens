@@ -28,11 +28,11 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
   | `Refund` (5) | agent never guessed | stake back to player |
 
 - **Job commit:** `keccak256(abi.encode(uint16 jobCode, bytes32 salt))`. The salt is random, and the client keeps it in `localStorage` keyed by `gameId`.
-- **Seed:** stateless. The server derives `seed = keccak256(abi.encode(AGENT_SEED_SECRET, jobCommit, nullifierHash))` and publishes `seedCommit = keccak256(abi.encode(seed))`, so no database is needed.
-- **Start signature:** the agent key signs an EIP-191 personal message over `keccak256(abi.encode(chainid, vault, player, jobCommit, seedCommit, nullifierHash, expiry))`. This one signature covers both World ID eligibility and the seed binding.
+- **Seed:** stateless. The server derives `seed = keccak256(abi.encode(AGENT_SEED_SECRET, jobCommit, playerKey))` and publishes `seedCommit = keccak256(abi.encode(seed))`, so no database is needed.
+- **Start signature:** the agent key signs an EIP-191 personal message over `keccak256(abi.encode(chainid, vault, player, jobCommit, seedCommit, playerKey, expiry))`. It binds the seed to the game and can only be used from the player's own wallet.
 - **Transcript on-chain:** `submitGuess` also takes `bytes10 answers`, one byte per question (0 = No, 1 = Probably Not, 2 = Probably, 3 = Yes). Questions are re-derived from seed + answers, so any game can be replayed from chain data alone.
 - **Deterministic prior:** the solver prior comes from the subgraph's settled games **as of the game's `startBlock`** (a Graph time-travel query), so replays stay exact even as history grows.
-- **Quota:** 3 games per World ID nullifier per UTC day (`block.timestamp / 1 days`).
+- **Quota:** 3 games per wallet per UTC day (`block.timestamp / 1 days`). The vault's `nullifierHash` argument carries `playerKey = keccak256(lowercase wallet address)`. World ID was dropped, so there is no proof-of-personhood gate.
 - **Timeouts:** guess within 30 min of start, otherwise `refund`. Reveal within 30 min of the guess, otherwise `forfeit`.
 - **Solver:** **10 questions**, softmax temperature **0.03**, over 66 jobs × 24 traits. Answer model: Yes = 0.75p + 0.0125, Probably = 0.2p + 0.0125, Probably Not = 0.2(1-p) + 0.0125, No = 0.75(1-p) + 0.0125. The next question is picked by a softmax over information gain, using a PRNG seeded from `${seed}:${step}`. The guess is the posterior argmax, with ties going to the lower index.
   - **Calibration** (`scripts/sim.ts`, noisy synthetic players): Seer exact about 48%, push about 7%, player wins about 45%.
@@ -69,16 +69,9 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
 - [x] **E5** Scaffold Next.js app in `web/`. *(me)*
 - [x] **E6** Scaffold Foundry project in `contracts/`. *(me)*
 - [x] **E7** (Seer `0x7224â€¦7080` and player `0x4F85â€¦102b`, 20 USDC each) Create two wallets, **player** and **agent**, and fund both from the Circle faucet. The agent needs gas, and the deployer needs about 6 USDC for the pot seed. *(you)*
-- [ ] **E8a — URGENT BLOCKER** Request **Selfie Check (Beta)** access for the World app. It is required even for sandbox testing ([docs](https://docs.world.org/world-id/sandbox/testing-selfie-check)).
-  - Ask the World sponsor in the ETHOnline Discord or partner channel, or email developers@toolsforhumanity.com.
-  - The wait is outside our control, so do this first.
-  - Until it's granted, the app runs with the fallback preset (`NEXT_PUBLIC_WORLD_PRESET=proofOfHuman`). *(you)*
-- [ ] **E8** World Developer Portal: create an app and an action `play-guessworker` with unlimited verifications.
-  - Note `app_id` and `rp_id`.
-  - Generate the **RP signing key**: IDKit v4 needs a server-signed `rp_context`. *(you)*
 - [x] **E9** Subgraph Studio: create subgraph `guessworker` and copy the deploy key. *(you)* Done: Studio subgraph `guessworker`, authenticated.
-- [ ] **E10** Fill in `web/.env.local` (see `web/.env.example`, created in A1): `AGENT_PRIVATE_KEY`, `AGENT_SEED_SECRET`, `NEXT_PUBLIC_WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `NEXT_PUBLIC_WORLD_ACTION`, `NEXT_PUBLIC_WORLD_PRESET`, `NEXT_PUBLIC_VAULT_ADDRESS`, `NEXT_PUBLIC_SUBGRAPH_URL`. *(you)*
-- [x] **E11** Set up a root git repo and `.gitignore`. The Graph track requires an open-source repo. *(free)* Done: root repo, remote `origin` = github.com/TheRealRajdeep/ethonline, forge-std as a submodule. The Grostel font is **gitignored** because its license is personal-use only, so copy it in locally.
+- [x] **E10** Fill in `web/.env.local` (see `web/.env.example`, created in A1): `AGENT_PRIVATE_KEY`, `AGENT_SEED_SECRET`, `NEXT_PUBLIC_VAULT_ADDRESS`, `NEXT_PUBLIC_VAULT_DEPLOY_BLOCK`, `SUBGRAPH_URL`, `NEXT_PUBLIC_SUBGRAPH_URL`. *(you)*
+- [x] **E11** Set up a root git repo and `.gitignore`. The Graph track requires an open-source repo. *(free)* Done: root repo, remote `origin` = github.com/TheRealRajdeep/ethonline, forge-std as a submodule. The Grostel font is committed (demo license) so Vercel's git builds can find it.
 
 ## 1. Matrix and solver
 
@@ -129,32 +122,13 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
 
 ## 3. Server (Next API routes)
 
-- [x] **A1** `web/.env.example`, `web/lib/config.ts` (chain = viem `arcTestnet`, vault address, World config, `GameStatus` / `Outcome` enums) and `web/lib/server/agent.ts` (public + agent wallet clients, `deriveSeed`, `commitSeed`, `signStart`, `readGame`). *(me)*
-- [x] **A2** World and start routes. The verify step is split from signing so the player can verify **before** picking a job:
-  - `app/api/world/rp-context` (GET): signs the IDKit v4 `rp_context`.
-  - `app/api/world/verify` (POST `{player, result}`): checks the signal equals the player address, calls the Portal's v4 verify, and returns `{nullifierHash, token, expiresAt}`. The token is an HMAC and lasts 15 min. `WORLD_DEV_BYPASS=true` skips World for local dev.
-  - `app/api/start` (POST `{player, nullifierHash, token, jobCommit}`): returns `{seedCommit, expiry, sig}`. *(me)*
+- [x] **A1** `web/.env.example`, `web/lib/config.ts` (chain = viem `arcTestnet`, vault address, `GameStatus` / `Outcome` enums) and `web/lib/server/agent.ts` (public + agent wallet clients, `deriveSeed`, `commitSeed`, `signStart`, `readGame`). *(me)*
+- [x] **A2** `app/api/start` (POST `{player, jobCommit}`): derives `playerKey` from the wallet, refuses with 429 once the wallet has played 3 games today, and returns `{seedCommit, playerKey, expiry, sig}`. *(me)*
 - [x] **A3** `web/app/api/question/route.ts` (POST `{gameId, answers}` → `{step, traitIndex, traitId, text, confidence, total}`). Shared loading logic is in `web/lib/server/game.ts`. *(me)*
 - [x] **A4** `web/app/api/guess/route.ts` (POST `{gameId, answers(10)}` → `{guessCode, title, confidence, operatingCost, txHash}`). Idempotent if the game is already guessed. The agent pays gas, and `operatingCost` = estimated gas × gas price + `AGENT_COMPUTE_FEE_WEI`. *(me)*
 - [x] **A5** `web/lib/server/prior.ts`: counts games settled with `settledBlock < startBlock`.
   - Returns a 503 if the subgraph `_meta.block` is behind `startBlock`, and falls back to a uniform prior when `SUBGRAPH_URL` is empty.
   - **Subgraph schema contract (S1 must match):** entity `Game` with `jobCode: Int`, `settledBlock: BigInt`, `outcome` as an enum `Outcome { None AgentWin Push PlayerWin Forfeit Refund }`, and `_meta`. *(me)*
-## 4. World ID
-
-- [x] **W0** Findings (confirmed from the installed type definitions, `@worldcoin/idkit` 4.2.3 and `idkit-core` 4.2.4):
-  - IDKit is now **v4**: `@worldcoin/idkit` (React `IDKitRequestWidget`) plus `@worldcoin/idkit-core`.
-  - The client needs an `rp_context` signed on the server with `signRequest()` from `@worldcoin/idkit-core/signing`.
-  - Verify with `POST https://developer.world.org/api/v4/verify/{rp_id}`, forwarding the IDKit result unchanged.
-  - Selfie Check uses the `selfieCheckLegacy({signal})` preset (World ID 3.0). Do **not** pass `allow_legacy_proofs`.
-  - The types say `allow_legacy_proofs` is a **required boolean**. Use `true` with `selfieCheckLegacy`, which is the example in the type docs.
-  - `IDKitRequestWidget` props: `open`, `onOpenChange`, `app_id`, `action`, `rp_context`, `allow_legacy_proofs`, `preset`, `environment?`, `handleVerify?`, `onSuccess`, `onError?`.
-  - The result's `responses[0]` has `nullifier` and `signal_hash`.
-
-  Original task: Read the current IDKit and Selfie Check docs (`docs.world.org/world-id/idkit/integrate`, `docs.idkit.com`) and confirm the package name/version, the widget API, and the cloud-verify endpoint for Selfie Check. *(me)*
-- [x] **W1** (done in `components/booth/WorldGate.tsx`) IDKit widget in the client, with signal set to the player address. **Needs:** W0, E8. *(me)*
-- [ ] **W2** One real Selfie Check in the Sandbox, end to end. **Needs:** W1, A2. *(you)*
-- [ ] **W3** `FEEDBACK.md` for the World track. **Needs:** W2. *(you, with me drafting)*
-
 ## 5. Frontend
 
 Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole section.
@@ -162,7 +136,6 @@ Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole s
 - [x] **F1** Design context: `teach-impeccable`, tokens, and fonts wired in `web/app/layout.tsx` and `globals.css`. *(me)* Done: `.impeccable.md` and `web/CLAUDE.md` design context, `app/globals.css` tokens and motion, fonts in `app/layout.tsx`.
 - [x] **F2** wagmi + viem providers, injected connector, Arc chain definition. **Needs:** A1. *(me)* Done: `app/providers.tsx` (wagmi v3: `useConnection`, `useConnect().mutateAsync`, `injected()`).
 - [x] **F3** Landing: live pot (cauldron/orb), agent balance and runway (candle), "Challenge the Seer" CTA. **Needs:** F1, F2. *(me)* Done: landing in `components/booth/Booth.tsx`, `components/props/{Cauldron,Candle}.tsx`.
-- [x] **F4** Verify screen (World ID). **Needs:** W1. *(me)* Done: `components/booth/WorldGate.tsx` (`IDKitRequestWidget`, preset from `NEXT_PUBLIC_WORLD_PRESET`, dev-bypass button).
 - [x] **F5** Pick and seal your job: searchable list, salt generation, wax-seal commit animation, `startGame` tx. **Needs:** A2, C4. *(me)* Done: `JobPicker.tsx` and `WaxSeal.tsx` stamp, with salt kept in `lib/commit.ts` localStorage and resume-on-reload.
 - [x] **F6** Question loop: rune-inked question, four sigil answer buttons, mascot thinking loop. **Needs:** A3. *(me)* Done: `QuestionCard.tsx` (ink-in, sigils, 1â€“4 hotkeys, mascot mood).
 - [x] **F7** The Guess: scrying-orb reveal. **Needs:** A4. *(me)* Done: `props/ScryingOrb.tsx`.
@@ -198,7 +171,7 @@ Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole s
 - [x] **L1** `web/scripts/e2e-local.ts` plays full games against a local anvil through the real API, solver and contract. Verified: Firefighter â†’ AgentWin; Marketing Specialist and Airline Pilot â†’ PlayerWin, with correct payouts and pot. To run it:
   1. `anvil --chain-id 5042002 --port 8546`
   2. Deploy with `AGENT_ADDRESS=<anvil acct1> forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8546 --broadcast --private-key <anvil acct0>`
-  3. `pnpm dev` with the env vars `NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8546`, `NEXT_PUBLIC_VAULT_ADDRESS=...`, `AGENT_PRIVATE_KEY=<acct1>`, `AGENT_SEED_SECRET=...`, `WORLD_DEV_BYPASS=true`, `NEXT_PUBLIC_WORLD_DEV_BYPASS=true`
+  3. `pnpm dev` with the env vars `NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8546`, `NEXT_PUBLIC_VAULT_ADDRESS=...`, `AGENT_PRIVATE_KEY=<acct1>`, `AGENT_SEED_SECRET=...`
   4. `APP_URL=http://localhost:3000 node scripts/e2e-local.ts 5411 2431` *(me)*
 
 ## 6c. Anti-cheat: players who lie to the Seer
@@ -215,7 +188,7 @@ Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole s
   | Blatant liar | +0.97 | **âˆ’0.44** | 61% |
   | Smart liar (lies only on ambiguous questions) | â€” | +0.15 | â€” |
 
-  The smart liar's edge is the known residual; the World ID 3/day quota caps it. *(me)*
+  The smart liar's edge is the known residual; the 3/day per-wallet quota limits it per wallet. *(me)*
 - [x] **X3** Tests: 27/27, including exact TSâ†”Solidity score parity. Live on testnet: honest game #4 â†’ AgentWin at 100% fit; liar game #5 (sealed Nurse, answered as another job, Seer fooled into "Police Officer") â†’ **Inconsistent**, 0% fit, stake to pot. *(me)*
 - [x] **X4** UI: answer-fit meter and "The seal does not lie." verdict on the result screen; honesty warning on the seal and question screens; the ledger counts caught liars. *(me)*
 - [x] **X5** README section explaining the attack, the check, the numbers and the residual smart-liar edge. *(free)* Done: README section "Catching liars on-chain".
@@ -224,9 +197,9 @@ Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole s
 
 - [ ] **D1** One real game per outcome (agent win, push, player win) on Arc testnet, with tx hashes saved in `DEMO_NOTES.md`. **Needs:** F8. *(you)*
 - [x] **D2** Architecture diagram, required by Arc. *(free)* Done: architecture mermaid diagram in the README. Export it to PNG for the submission form if needed.
-- [x] **D3** README covering: pitch, how it works, provable-fairness replay, matrix hash, v1 trust boundary (off-chain World verify, advisory judge cut), v2 roadmap, sponsor usage per track. *(free)* Done: `README.md` with 8 mermaid diagrams, all render-checked in light and dark themes. Update the replay section once M5 lands.
-- [ ] **D4** Record the demo: Selfie Check → agent win → player win → explorer → subgraph query. *(you)*
-- [ ] **D5** ETHGlobal submission: 3 partner prizes (Arc, The Graph, World). *(you)*
+- [x] **D3** README covering: pitch, how it works, provable-fairness replay, matrix hash, v1 trust boundary, v2 roadmap, sponsor usage per track. *(free)* Done: `README.md` with 8 mermaid diagrams, all render-checked in light and dark themes. Update the replay section once M5 lands.
+- [ ] **D4** Record the demo: agent win → player win → explorer → subgraph query. *(you)*
+- [ ] **D5** ETHGlobal submission: 2 partner prizes (Arc, The Graph). *(you)*
 - [ ] **D6** After the deadline, between Sep 16 and 30: deploy to Arc Mainnet and update the submission for the bonuses. *(you)*
 
 ---
@@ -237,4 +210,4 @@ Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole s
 2. Runway candle → plain number (F3 partial)
 3. Recent games (F9)
 4. Subgraph entirely (S1–S3, A5 fallback) → lose the Graph track
-5. **Never cut:** C1–C4, M1–M2, A2–A4, W1–W2, F5–F8, D4
+5. **Never cut:** C1–C4, M1–M2, A2–A4, F5–F8, D4

@@ -14,7 +14,7 @@ Legilimens is a fortune-teller's booth on the blockchain. A player stakes 1 USDC
 
 Every rule is enforced by a smart contract on Arc testnet, so neither side can cheat.
 
-It's built for the **ETHOnline 2026** hackathon. Partner tracks: **Arc** (stablecoin-native chain, agent economy), **The Graph** (the Seer learns from past games) and **World** (Selfie Check proof-of-human, 3 games per person per day).
+It's built for the **ETHOnline 2026** hackathon. Partner tracks: **Arc** (stablecoin-native chain, agent economy) and **The Graph** (the Seer learns from past games).
 
 ---
 
@@ -29,11 +29,10 @@ The Seer is the house. It has its own wallet, earns a 5% cut when it wins, and p
 | # | Screen | What happens | Mascot on screen |
 |---|---|---|---|
 | 1 | **Landing** | Big headline "The Seer will name your trade." Live pot shown as a glowing cauldron. The Seer's candle shows its remaining runway. CTA: *Challenge the Seer · 1.00 USDC*. | **Yes.** Large, idle, standing *behind/above the cauldron* |
-| 2 | **World ID gate** | "One face, one fortune." Player proves they're human with World App Selfie Check. | **Yes.** Idle, left of the text |
-| 3 | **Seal your trade** | Player searches a parchment ledger of 66 trades and picks one. A wax seal stamps down when the stake transaction confirms. | No (the wax seal is the star) |
-| 4 | **The questions** (×10) | One question at a time inks onto the screen. Four sigil buttons: ☉ Yes · ☽ Probably · ☾ Probably not · ✕ No. Counter "3 / 10". | **Yes.** Beside the question; mood shifts between *thinking*, *idle* and *confident* |
-| 5 | **The guess** | A scrying orb swirls with mist, then clears to reveal the Seer's guess. Quote: *"You are a Chef. I am never wrong."* | No (the orb is the star) |
-| 6 | **Break the seal / result** | Player reveals their sealed job; the contract settles. The seal cracks. Coins pour if the player wins. | **Yes.** *Triumphant*, *confident* or *stumped* depending on outcome |
+| 2 | **Seal your trade** | Player searches a parchment ledger of 66 trades and picks one. A wax seal stamps down when the stake transaction confirms. | No (the wax seal is the star) |
+| 3 | **The questions** (×10) | One question at a time inks onto the screen. Four sigil buttons: ☉ Yes · ☽ Probably · ☾ Probably not · ✕ No. Counter "3 / 10". | **Yes.** Beside the question; mood shifts between *thinking*, *idle* and *confident* |
+| 4 | **The guess** | A scrying orb swirls with mist, then clears to reveal the Seer's guess. Quote: *"You are a Chef. I am never wrong."* | No (the orb is the star) |
+| 5 | **Break the seal / result** | Player reveals their sealed job; the contract settles. The seal cracks. Coins pour if the player wins. | **Yes.** *Triumphant*, *confident* or *stumped* depending on outcome |
 
 ---
 
@@ -151,7 +150,7 @@ The app picks the image from the game state. Each mood is a **separate PNG with 
 
 | File | When it appears | Pose and expression direction |
 |---|---|---|
-| `idle.png` | Landing (large, above the cauldron), World ID screen, questions when the Seer is unsure | Composed, welcoming but smug. One hand raised as if beckoning "step right up", or hands resting on a crystal ball. Knowing half-smile. |
+| `idle.png` | Landing (large, above the cauldron), questions when the Seer is unsure | Composed, welcoming but smug. One hand raised as if beckoning "step right up", or hands resting on a crystal ball. Knowing half-smile. |
 | `thinking.png` | While the Seer computes the next question or its guess | Concentrating: eyes narrowed or closed, fingers at temple, or peering into cards or an orb. **Gets a slow sway animation** (rotates ±1.5° and lifts 3px on a 2.4s loop around a point near the base), so pose it balanced and symmetrical-ish. |
 | `confident.png` | During questions once the Seer's confidence passes 45%; also on a **push** result (right family, wrong job) | Leaning in, one eyebrow up, pointing at the viewer or tapping a card. "I've nearly got you." |
 | `triumphant.png` | Result screen when **the Seer wins** | Big showman flourish: arms wide or a bow, cape swirl, gleeful grin, maybe coins or a glowing orb held aloft. Peak smugness. |
@@ -162,7 +161,6 @@ The app picks the image from the game state. Each mood is a **separate PNG with 
 | Screen | Mood(s) | Displayed width |
 |---|---|---|
 | Landing | idle | 250 px card, with the vault pot overlapping its bottom edge |
-| World ID gate | idle | 200 px |
 | Questions | thinking / idle / confident | 220 px |
 | Result | triumphant / confident / stumped | 230 px (cracked wax seal shown below) |
 
@@ -232,9 +230,9 @@ Use one base prompt for the character, then swap the pose line per mood. Keep th
 
 | Part | Summary | Where |
 |---|---|---|
-| Smart contract | `LegilimensVault` on Arc testnet `0x8286DE5954296D78ce2f276424F9dEe3a60bA9D8`: escrow, commit–reveal, three-tier settlement, pot, Seer rake, World ID daily quota, timeouts | `contracts/src/LegilimensVault.sol` |
+| Smart contract | `LegilimensVault` on Arc testnet `0x8286DE5954296D78ce2f276424F9dEe3a60bA9D8`: escrow, commit–reveal, three-tier settlement, pot, Seer rake, per-wallet daily quota, timeouts | `contracts/src/LegilimensVault.sol` |
 | The Seer's brain | Bayesian solver over 66 jobs × 24 traits; picks the most informative question (seeded, so every game is replayable); 10 questions | `web/lib/solver.ts`, `web/lib/matrix.json` |
-| Server | World ID verification, start-game signing, next-question and guess routes; the Seer's wallet submits its guess | `web/app/api/*` |
+| Server | Start-game signing, next-question and guess routes; the Seer's wallet submits its guess | `web/app/api/*` |
 | Frontend | Next.js booth UI, props (seal, orb, cauldron, candle, coins) | `web/components/*` |
 | Design context for agents | Condensed version of sections 4–5 | `web/.impeccable.md`, `web/CLAUDE.md` |
 | Task status | Build checklist and shared technical decisions | `CHECKLIST.md` |

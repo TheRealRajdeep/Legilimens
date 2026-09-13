@@ -10,7 +10,7 @@
 Stake 1 USDC. Seal your job in wax. If the Seer names it, it keeps your coin.<br/>
 If it can't, you take half the pot. And if you lie to it, the seal knows.
 
-`Arc` · `The Graph` · `World ID` &nbsp;·&nbsp; built for **ETHOnline 2026**
+`Arc` · `The Graph` &nbsp;·&nbsp; built for **ETHOnline 2026**
 
 </div>
 
@@ -37,7 +37,7 @@ If it can't, you take half the pot. And if you lie to it, the seal knows.
 
 <table>
 <tr>
-<td align="center" width="20%"><img src="web/public/mascot/idle.webp" width="120" /><br/><sub><b>1. Challenge</b><br/>Prove you're human with World ID</sub></td>
+<td align="center" width="20%"><img src="web/public/mascot/idle.webp" width="120" /><br/><sub><b>1. Challenge</b><br/>Connect your wallet and stake 1 USDC</sub></td>
 <td align="center" width="20%"><img src="web/public/mascot/thinking.webp" width="120" /><br/><sub><b>2. Seal &amp; answer</b><br/>Commit your job, answer 10 questions</sub></td>
 <td align="center" width="20%"><img src="web/public/mascot/confident.webp" width="120" /><br/><sub><b>3. The guess</b><br/>The Seer names a trade on-chain</sub></td>
 <td align="center" width="20%"><img src="web/public/mascot/triumphant.webp" width="120" /><br/><sub><b>4a. Seer wins</b><br/>Your stake joins the pot</sub></td>
@@ -45,7 +45,7 @@ If it can't, you take half the pot. And if you lie to it, the seal knows.
 </tr>
 </table>
 
-1. **Prove you're human.** A World ID Selfie Check limits every person to **3 games a day**, so nobody can farm the pot with bots.
+1. **Challenge the Seer.** Connect a wallet on Arc testnet. Each wallet gets **3 games a day**, enforced on-chain.
 2. **Seal your trade.** Pick your job from a ledger of 66 occupations. Only `keccak256(jobCode, salt)` goes on-chain: you can't change your job later, and the Seer can't peek.
 3. **Answer ten questions** with *Yes · Probably · Probably not · No*. The Seer picks each question to learn as much as possible about you.
 4. **The Seer guesses.** Its wallet posts the guess plus its seed and the full transcript on-chain.
@@ -56,18 +56,14 @@ If it can't, you take half the pot. And if you lie to it, the seal knows.
 sequenceDiagram
     autonumber
     actor P as Player
-    participant W as World App
     participant S as Seer server
     participant V as LegilimensVault
     participant G as The Graph
 
-    P->>W: Selfie Check
-    W-->>S: ZK proof, signal = player wallet
-    S->>S: Verify with World portal, issue eligibility token
     P->>P: Pick job, random salt, jobCommit = keccak(job, salt)
-    P->>S: jobCommit + token
+    P->>S: player wallet + jobCommit
     S-->>P: seedCommit + Seer signature
-    P->>V: startGame(jobCommit, seedCommit, nullifier, sig) + 1 USDC
+    P->>V: startGame(jobCommit, seedCommit, playerKey, sig) + 1 USDC
     Note over V: Stake escrowed. Job and seed are now both locked.
 
     loop 10 questions
@@ -91,8 +87,6 @@ sequenceDiagram
 ```mermaid
 %%{init: {"theme":"base","flowchart":{"curve":"basis","nodeSpacing":40,"rankSpacing":55},"themeVariables":{"fontFamily":"Georgia, serif","fontSize":"15px","primaryColor":"#231C31","primaryTextColor":"#EDE3CC","primaryBorderColor":"#E2A83B","lineColor":"#E2A83B","clusterBkg":"#2E234022","clusterBorder":"#8A6A3A","edgeLabelBackground":"#15111F","titleColor":"#8A6A3A"}}}%%
 flowchart TB
-    Phone(["World App<br/>Selfie Check"])
-
     subgraph Browser["🕯️ Player's browser"]
         direction LR
         UI["Booth UI<br/>Next.js · React"]
@@ -101,12 +95,10 @@ flowchart TB
 
     subgraph Server["🔮 The Seer · Next.js API"]
         direction LR
-        WV["World verify<br/>+ start signature"]
+        WV["Start signature<br/>+ seed commit"]
         Q["Question<br/>entropy solver"]
         GU["Guess<br/>Seer's own wallet"]
     end
-
-    Portal(["World<br/>Developer Portal"])
 
     subgraph Chain["⛓️ Arc testnet · USDC is gas"]
         direction LR
@@ -118,9 +110,7 @@ flowchart TB
         SG[("Subgraph<br/>games · players · job stats")]
     end
 
-    Phone -- "ZK proof" --> UI
     UI --> WV
-    WV <--> Portal
     UI <--> Q
     UI --> GU
     MM == "startGame · reveal" ==> VAULT
@@ -131,19 +121,17 @@ flowchart TB
     SG -. "booth's ledger" .-> UI
 
     classDef chain fill:#2E2340,stroke:#3FB6A8,stroke-width:2px,color:#EDE3CC
-    classDef ext fill:#EDE3CC,stroke:#C4472D,color:#2A2233
     classDef index fill:#231C31,stroke:#3FB6A8,color:#EDE3CC
     class VAULT,MATRIX chain
-    class Phone,Portal ext
     class SG index
 ```
 
 | Layer | What it does | Where |
 |---|---|---|
-| **Contract** | Escrows stakes, locks the job and seed commitments, enforces the World ID daily quota, scores answer fit, settles and pays out atomically | [`contracts/src/LegilimensVault.sol`](contracts/src/LegilimensVault.sol) |
+| **Contract** | Escrows stakes, locks the job and seed commitments, enforces the per-wallet daily quota, scores answer fit, settles and pays out atomically | [`contracts/src/LegilimensVault.sol`](contracts/src/LegilimensVault.sol) |
 | **On-chain matrix** | The Seer's knowledge, generated from `matrix.json` so the solver and contract can never drift | [`contracts/src/SeerMatrix.sol`](contracts/src/SeerMatrix.sol) |
 | **Solver** | Bayesian posterior over 66 jobs, picks the most informative question with a seeded softmax | [`web/lib/solver.ts`](web/lib/solver.ts) |
-| **Server** | World ID verification, start signatures, question and guess routes. Stateless: seeds are re-derived from chain data | [`web/app/api`](web/app/api) |
+| **Server** | Start signatures, question and guess routes. Stateless: seeds are re-derived from chain data | [`web/app/api`](web/app/api) |
 | **Subgraph** | Indexes every game; the Seer's prior and the booth's ledger read from it | [`subgraph/`](subgraph) |
 | **Frontend** | The candlelit booth: wax seals, scrying orb, filling pot, the Seer's candle | [`web/components`](web/components) |
 
@@ -272,7 +260,7 @@ flowchart LR
 
 **Proven on testnet:** game #5 sealed *Nurse* and answered as another job, and the Seer was fooled into guessing *Police Officer*. The old vault would have paid out; this one settled **Inconsistent** with a fit score of −9173 and sent the stake to the pot.
 
-> **The residual edge.** Lying only on genuinely ambiguous questions ("is creativity central to your job?") is statistically indistinguishable from honest uncertainty, so no scoring rule can remove it. It's small, and the World ID limit of 3 games per human per day caps it at roughly 0.45 USDC per person per day.
+> **The residual edge.** Lying only on genuinely ambiguous questions ("is creativity central to your job?") is statistically indistinguishable from honest uncertainty, so no scoring rule can remove it. It's small: about 0.15 stakes per game, and at most 3 games a day per wallet. Someone willing to fund many wallets can repeat it, which is the price of having no proof-of-personhood gate.
 
 ---
 
@@ -373,10 +361,6 @@ flowchart LR
 - **Deterministic by design.** Querying only games settled before the start block makes every prior reproducible for replays.
 - **Product surface:** the booth's ledger (recent readings, Seer win and loss counts, caught liars) comes straight from the subgraph.
 
-### World: Selfie Check
-
-- **One human, three fortunes a day.** A Selfie Check proof (IDKit v4, `selfieCheckLegacy`) is verified with the Developer Portal. Its nullifier drives an **on-chain daily quota**, so the pot can't be farmed with bots.
-- The proof's signal is bound to the player's wallet, so a proof can't be replayed by another address.
 
 ---
 
@@ -421,13 +405,11 @@ If you change `web/lib/matrix.json`, regenerate the on-chain copy with `node web
 ```bash
 cd web
 pnpm install
-cp .env.example .env.local   # fill in vault address, Seer key, World ID, subgraph URL
+cp .env.example .env.local   # fill in vault address, Seer key, subgraph URL
 pnpm dev                     # http://localhost:3000
 ```
 
-> **Font:** the Grostel display font is licensed for personal use only, so it isn't in this repo. Put `GrostelRegular-V43ye.ttf` in `web/assets/fonts/grostel/`, or point `web/app/layout.tsx` at another font.
-
-**No World ID keys yet?** Set `WORLD_DEV_BYPASS=true` and `NEXT_PUBLIC_WORLD_DEV_BYPASS=true` for local development only.
+> **Font:** the Grostel display font in `web/assets/fonts/grostel/` is a demo-licensed font from Zeenesia Studio (license in `misc/`). Point `web/app/layout.tsx` at another font for any commercial use.
 
 ### Subgraph
 
@@ -457,7 +439,7 @@ LIAR=1 … node scripts/e2e-local.ts 2221                                 # liar
 contracts/        Foundry: LegilimensVault, generated SeerMatrix, tests, deploy script
 subgraph/         The Graph: schema, mappings, manifest (network: arc-testnet)
 web/
-  app/api/        World verify, start signing, question, guess routes
+  app/api/        start signing, question, guess routes
   components/     Booth flow + props (Seer card, wax seal, orb, pot, candle, coins)
   lib/            solver.ts, matrix.json, commit–reveal helpers, server clients
   scripts/        sim, e2e, matrix → Solidity generator
@@ -477,13 +459,12 @@ CHECKLIST.md      Build checklist and shared technical decisions
 | Outcome and payout | **Trustless** (contract settles atomically) |
 | Lying to fool the Seer doesn't pay | **Trustless** (on-chain answer-fit check), except the small smart-liar edge above |
 | Pot can't be over-drawn | **Trustless** (share-of-pot payouts, invariant tested) |
-| One human, 3 games a day | **Trusted server:** World ID proofs are verified off-chain, because there's no World ID verifier on Arc, then attested by the Seer's signature |
+| 3 games a day per wallet | **Trustless** (on-chain quota keyed by `keccak256(wallet)`). There's no proof-of-personhood, so one person can play from several wallets |
 | The `traits` the Seer publishes match the questions it actually asked | **Publicly verifiable** by replaying the solver from seed + answers + prior |
 | The Seer's matrix is the published one | **Verifiable:** `MATRIX_HASH` on-chain |
 
 **Roadmap**
 - A "verify this game" button in the UI, running the replay in the browser.
-- On-chain World ID verification once a verifier is available on Arc.
 - Richer ledger of occupations; LLM-phrased questions on top of the same deterministic solver.
 - Arc mainnet deployment.
 
