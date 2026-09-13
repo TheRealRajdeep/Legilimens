@@ -32,3 +32,6 @@ web/assets/fonts/grostel-font.zip
 Thumbs.db
 .vscode/
 .idea/
+
+# raw generated art (~45MB); web-ready versions are produced by art/process_art.py
+art/source/
