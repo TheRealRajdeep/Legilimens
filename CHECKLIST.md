@@ -86,7 +86,15 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
 - [x] **M2** `web/lib/solver.ts`: prior, posterior update, information gain, seeded softmax pick, `nextQuestion(seed, answers, prior)`, `finalGuess(...)`. Pure TS, no deps. **Needs:** M1. *(me)*
 - [x] **M3** `web/scripts/sim.ts`: simulate N games with noisy synthetic players and print the exact/push/miss rates. Target roughly 55/28/17; tune the question count or softmax temperature to get there. Run with `node web/scripts/sim.ts`. **Needs:** M2. *(free)*
 - [x] **M4** Publish `keccak256(matrix.json)` in the README. **Needs:** M1 final. *(free)* Done: the matrix hash is in the README and on-chain as `MATRIX_HASH`.
-- [ ] **M5** `web/scripts/replay.ts`: given `gameId`, read seed, answers and `startBlock` from chain, rebuild the prior via the subgraph at that block, rerun the solver, and assert that the guess matches. **Needs:** M2, C4, S2. *(free)*
+- [x] **M5** `web/scripts/replay.ts <gameId|all>`. It checks:
+  - the matrix hash
+  - the seed commitment
+  - the prior, rebuilt from on-chain Settled events and cross-checked with The Graph
+  - every published question trait and the final guess, by re-running the solver
+  - the fit verdict, against both the TS scorer and the contract's `fit()`
+
+  **Verified all 4 guessed games on the live vault (#4â€“#7).**
+  - Note: game #6 was forfeited at score âˆ’6182, just past the âˆ’6000 line, which could be an honest-player false positive. *(me)*
 - [x] **M6** Find the jobs the solver misses most often, to use in the player-win demo take. Hardest jobs at the final settings (full list in `web/scripts/sim-results.txt`):
 
   | Code | Job | Miss rate |

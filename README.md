@@ -301,7 +301,35 @@ cast call 0x8286DE5954296D78ce2f276424F9dEe3a60bA9D8 \
 # → -373  10000  false   (an honest nurse transcript: full prize)
 ```
 
-A one-command replay script that re-runs a whole game from chain data is in progress ([checklist M5](CHECKLIST.md)).
+### Replay any game in one command
+
+[`web/scripts/replay.ts`](web/scripts/replay.ts) rebuilds a game from public data only, with no secrets and no access to our server, and checks that the Seer played by its published algorithm:
+
+```bash
+cd web
+node scripts/replay.ts 5        # one game
+node scripts/replay.ts all      # every game the Seer has guessed
+```
+
+```
+Game #5 Â· sealed Nurse Â· Seer guessed Police Officer Â· Inconsistent
+  âœ“ seed matches the commitment made before play
+  âœ“ prior rebuilt from 1 earlier settled game on-chain (before block 61887212)
+  âœ“ The Graph reports the same history
+  âœ“ questions 1â€“10 match the Seer's published transcript
+  âœ“ final guess matches: Police Officer
+  âœ“ fit score -9173 (0% of prize) matches this repo's scorer and the contract
+  The Seer played this game exactly by its published algorithm.
+```
+
+It checks five things:
+1. The matrix in the repo is the one committed on-chain.
+2. The revealed seed matches the Seer's pre-game commitment.
+3. The prior is rebuilt **from on-chain `Settled` events** and cross-checked against The Graph.
+4. Re-running the solver reproduces every published question and the final guess.
+5. The answer-fit verdict matches both the TypeScript scorer and the contract's `fit()`.
+
+Any mismatch prints âœ— and exits non-zero.
 
 ---
 
@@ -454,7 +482,7 @@ CHECKLIST.md      Build checklist and shared technical decisions
 | The Seer's matrix is the published one | **Verifiable:** `MATRIX_HASH` on-chain |
 
 **Roadmap**
-- One-command replay script and a "verify this game" button.
+- A "verify this game" button in the UI, running the replay in the browser.
 - On-chain World ID verification once a verifier is available on Arc.
 - Richer ledger of occupations; LLM-phrased questions on top of the same deterministic solver.
 - Arc mainnet deployment.
