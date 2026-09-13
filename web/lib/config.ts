@@ -1,7 +1,11 @@
 import { arcTestnet } from "viem/chains";
 import type { Address } from "viem";
 
-export const chain = arcTestnet;
+// NEXT_PUBLIC_RPC_URL lets local development point at an anvil node started with --chain-id 5042002.
+const rpcOverride = process.env.NEXT_PUBLIC_RPC_URL;
+export const chain = rpcOverride
+  ? { ...arcTestnet, rpcUrls: { default: { http: [rpcOverride] } } }
+  : arcTestnet;
 
 export const VAULT_ADDRESS = (process.env.NEXT_PUBLIC_VAULT_ADDRESS ?? "0x0000000000000000000000000000000000000000") as Address;
 export const VAULT_DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_VAULT_DEPLOY_BLOCK ?? "0");

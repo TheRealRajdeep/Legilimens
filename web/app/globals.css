@@ -1,26 +1,234 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-ink: #15111f;
+  --color-soot: #231c31;
+  --color-velvet: #2e2340;
+  --color-parchment: #ede3cc;
+  --color-parchment-deep: #d9cbaa;
+  --color-faded: #b9ad93;
+  --color-verdigris: #3fb6a8;
+  --color-ember: #e2a83b;
+  --color-hex: #c4472d;
+  --color-moss: #7fa36b;
+  --color-quill: #2a2233; /* ink tone for text on parchment */
+
+  --font-brand: var(--font-grostel), "Playfair Display", Georgia, serif;
+  --font-text: var(--font-playfair), Georgia, "Times New Roman", serif;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --text-whisper: clamp(0.95rem, 0.9rem + 0.2vw, 1.05rem);
+  --text-body: clamp(1.05rem, 1rem + 0.25vw, 1.2rem);
+  --text-lead: clamp(1.3rem, 1.1rem + 0.8vw, 1.75rem);
+  --text-title: clamp(2.2rem, 1.6rem + 2.6vw, 3.8rem);
+  --text-marquee: clamp(3rem, 2rem + 5vw, 6.5rem);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
+  background: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ink);
+  color: var(--color-parchment);
+  font-family: var(--font-text);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* Candlelight falls from above the booth; paper grain keeps the dark from reading as a flat screen. */
+.booth-room {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 12%, color-mix(in oklch, var(--color-ember) 16%, transparent), transparent 70%),
+    radial-gradient(ellipse 120% 90% at 50% 110%, color-mix(in oklch, var(--color-velvet) 70%, transparent), transparent 60%),
+    var(--color-ink);
+}
+.booth-room::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.09;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .93 0 0 0 0 .89 0 0 0 0 .8 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.booth-room::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 85% 75% at 50% 45%, transparent 55%, color-mix(in oklch, var(--color-ink) 92%, black));
+}
+
+/* Tarot-card frame: thin brass double rule with notched corners. */
+.tarot-frame {
+  position: relative;
+  border: 1px solid color-mix(in oklch, var(--color-ember) 45%, transparent);
+  outline: 1px solid color-mix(in oklch, var(--color-ember) 22%, transparent);
+  outline-offset: 5px;
+}
+.tarot-frame::before,
+.tarot-frame::after {
+  content: "✦";
+  position: absolute;
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--color-ember);
+  top: -0.55rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding-inline: 0.4rem;
+  background: var(--frame-bg, var(--color-ink));
+}
+.tarot-frame::after {
+  top: auto;
+  bottom: -0.55rem;
+}
+
+.parchment {
+  --frame-bg: var(--color-parchment);
+  color: var(--color-quill);
+  background:
+    radial-gradient(ellipse at 20% 10%, color-mix(in oklch, white 18%, transparent), transparent 55%),
+    radial-gradient(ellipse at 85% 95%, color-mix(in oklch, var(--color-parchment-deep) 90%, transparent), transparent 60%),
+    var(--color-parchment);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklch, var(--color-quill) 12%, transparent),
+    inset 0 0 40px color-mix(in oklch, #8a6a3a 22%, transparent);
+}
+
+.brand {
+  font-family: var(--font-brand);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-verdigris);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ---------- Motion ---------- */
+
+/* Press feedback for pointer users only; hotkeys change state instantly. */
+.press {
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease;
+}
+.press:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) and (pointer: fine) {
+  .press:hover {
+    transform: translateY(-1px);
+  }
+  .press:hover:active {
+    transform: translateY(0) scale(0.97);
+  }
+}
+
+/* A question inks in left-to-right, like a quill stroke. */
+.ink-in {
+  animation: ink-in 520ms var(--ease-out) both;
+}
+@keyframes ink-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.2;
+    filter: blur(2px);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+/* Landing stagger: children set --i. */
+.rise {
+  animation: rise 700ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 70ms + 120ms);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* The Seer mulls: a slow breath while the solver works. Predetermined, so CSS keeps it smooth under load. */
+.mulling {
+  animation: mull 2.4s var(--ease-in-out) infinite;
+  transform-origin: 50% 90%;
+}
+@keyframes mull {
+  0%,
+  100% {
+    transform: rotate(-1.5deg) translateY(0);
+  }
+  50% {
+    transform: rotate(1.5deg) translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-in {
+    animation: fade-in 200ms ease both;
+  }
+  .rise {
+    animation: fade-in 250ms ease both;
+  }
+  .mulling {
+    animation: breathe-opacity 2.4s ease-in-out infinite;
+  }
+  .press:active,
+  .press:hover,
+  .press:hover:active {
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes breathe-opacity {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
