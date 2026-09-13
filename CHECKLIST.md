@@ -94,7 +94,8 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
   - the fit verdict, against both the TS scorer and the contract's `fit()`
 
   **Verified all 4 guessed games on the live vault (#4â€“#7).**
-  - Note: game #6 was forfeited at score âˆ’6182, just past the âˆ’6000 line, which could be an honest-player false positive. *(me)*
+  - Game #6 was a **deliberate cheat by the owner** (sealed Bartender, answered to mislead). It was caught at score âˆ’6182, just past the âˆ’6000 line.
+  - So a real hand-played cheat nearly got through. Keep this in mind before loosening the threshold. *(me)*
 - [x] **M6** Find the jobs the solver misses most often, to use in the player-win demo take. Hardest jobs at the final settings (full list in `web/scripts/sim-results.txt`):
 
   | Code | Job | Miss rate |
