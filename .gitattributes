@@ -1,0 +1,2 @@
+# The on-chain matrix hash is over these exact bytes: never let git rewrite line endings.
+web/lib/matrix.json -text
