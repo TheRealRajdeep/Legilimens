@@ -78,12 +78,13 @@ export type OnchainGame = {
   startBlock: bigint;
   guessedAt: bigint;
   guessCode: number;
+  traits: Hex;
   answers: Hex;
   status: number;
 };
 
 export async function readGame(gameId: bigint): Promise<OnchainGame> {
-  const [player, stake, jobCommit, seedCommit, nullifierHash, startedAt, startBlock, guessedAt, guessCode, answers, status] =
+  const [player, stake, jobCommit, seedCommit, nullifierHash, startedAt, startBlock, guessedAt, guessCode, traits, answers, status] =
     await publicClient.readContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: "games", args: [gameId] });
-  return { player, stake, jobCommit, seedCommit, nullifierHash, startedAt, startBlock, guessedAt, guessCode, answers, status };
+  return { player, stake, jobCommit, seedCommit, nullifierHash, startedAt, startBlock, guessedAt, guessCode, traits, answers, status };
 }

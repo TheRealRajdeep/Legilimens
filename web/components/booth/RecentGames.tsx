@@ -8,7 +8,8 @@ import { jobByCode } from "@/lib/solver";
 type SettledGame = {
   gameId: string;
   player: { id: string };
-  outcome: "AgentWin" | "Push" | "PlayerWin" | "Forfeit" | "Refund";
+  outcome: "AgentWin" | "Push" | "PlayerWin" | "Forfeit" | "Refund" | "Inconsistent";
+  fitBps: string | null;
   jobCode: number | null;
   guessCode: number | null;
   payout: string | null;
@@ -16,12 +17,12 @@ type SettledGame = {
   settleTx: string;
 };
 
-type Stats = { gamesSettled: number; agentWins: number; pushes: number; playerWins: number } | undefined;
+type Stats = { gamesSettled: number; agentWins: number; pushes: number; playerWins: number; inconsistent: number } | undefined;
 
 const QUERY = `{
-  vaults(first: 1) { gamesSettled agentWins pushes playerWins }
+  vaults(first: 1) { gamesSettled agentWins pushes playerWins inconsistent }
   games(first: 8, orderBy: settledAt, orderDirection: desc, where: { status: Settled }) {
-    gameId player { id } outcome jobCode guessCode payout settledAt settleTx
+    gameId player { id } outcome jobCode guessCode payout fitBps settledAt settleTx
   }
 }`;
 
@@ -31,6 +32,7 @@ const VERDICT: Record<SettledGame["outcome"], { label: string; tone: string }> =
   PlayerWin: { label: "Seer baffled", tone: "text-moss" },
   Forfeit: { label: "Seal never broken", tone: "text-faded" },
   Refund: { label: "Refunded", tone: "text-faded" },
+  Inconsistent: { label: "Caught lying — stake forfeit", tone: "text-hex" },
 };
 
 function ago(seconds: string): string {
@@ -71,7 +73,8 @@ export function RecentGames() {
         {stats ? (
           <p className="text-(length:--text-whisper) text-faded">
             {stats.gamesSettled} readings · Seer named <span className="text-hex">{stats.agentWins}</span> · close{" "}
-            <span className="text-ember">{stats.pushes}</span> · baffled <span className="text-moss">{stats.playerWins}</span>
+            <span className="text-ember">{stats.pushes}</span> · baffled <span className="text-moss">{stats.playerWins}</span> · caught lying{" "}
+            <span className="text-hex">{stats.inconsistent}</span>
           </p>
         ) : null}
       </div>

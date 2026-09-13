@@ -7,6 +7,9 @@ import { vaultAbi } from "../lib/abi.ts";
 import { jobCommitment, newSalt } from "../lib/commit.ts";
 import { JOBS, QUESTION_BUDGET, sampleAnswer } from "../lib/solver.ts";
 
+// LIAR=1 answers every question as a different, unrelated job to check the vault forfeits the stake.
+const LIAR = process.env.LIAR === "1";
+
 const APP = process.env.APP_URL ?? "http://localhost:3100";
 const RPC = process.env.RPC_URL ?? "http://127.0.0.1:8546";
 const VAULT = (process.env.VAULT ?? "0x5FbDB2315678afecb367f032d93F642f64180aa3") as Hex;
@@ -56,16 +59,17 @@ async function play(jobCode: number) {
   for (let i = 0; i < QUESTION_BUDGET; i++) {
     const q = await post<{ traitIndex: number; text: string }>("/api/question", { gameId, answers });
     asked.push(q.text);
-    answers.push(sampleAnswer(jobIndex, q.traitIndex, rand));
+    const answerAs = LIAR ? (jobIndex + JOBS.length / 2) % JOBS.length : jobIndex;
+    answers.push(sampleAnswer(answerAs, q.traitIndex, rand));
   }
   const guess = await post<{ guessCode: number; title: string; txHash: Hex }>("/api/guess", { gameId, answers });
 
   const revealHash = await wallet.writeContract({ address: VAULT, abi: vaultAbi, functionName: "reveal", args: [BigInt(gameId), job.code, salt] });
   const revealReceipt = await pub.waitForTransactionReceipt({ hash: revealHash });
   const [settled] = parseEventLogs({ abi: vaultAbi, logs: revealReceipt.logs, eventName: "Settled" });
-  const outcome = ["None", "AgentWin", "Push", "PlayerWin", "Forfeit", "Refund"][settled.args.outcome];
+  const outcome = ["None", "AgentWin", "Push", "PlayerWin", "Forfeit", "Refund", "Inconsistent"][settled.args.outcome];
 
-  console.log(`\n#${gameId} sealed ${job.title} → Seer guessed ${guess.title} → ${outcome}, payout ${Number(settled.args.payout) / 1e18} USDC, pot ${Number(settled.args.potAfter) / 1e18}`);
+  console.log(`\n#${gameId} sealed ${job.title} → Seer guessed ${guess.title} → ${outcome}, payout ${Number(settled.args.payout) / 1e18} USDC, fit ${Number(settled.args.fitBps) / 100}% (score ${settled.args.fitScore}), pot ${Number(settled.args.potAfter) / 1e18}${LIAR ? " [liar]" : ""}`);
   console.log(`  first questions: ${asked.slice(0, 3).join(" | ")}`);
 }
 

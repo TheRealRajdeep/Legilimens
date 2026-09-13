@@ -30,8 +30,8 @@ dataSources:
           handler: handlePotSeeded
         - event: GameStarted(indexed uint256,indexed address,indexed bytes32,uint256,uint256)
           handler: handleGameStarted
-        - event: GuessSubmitted(indexed uint256,uint16,bytes32,bytes10,uint256)
+        - event: GuessSubmitted(indexed uint256,uint16,bytes32,bytes10,bytes10,uint256)
           handler: handleGuessSubmitted
-        - event: Settled(indexed uint256,uint8,uint16,uint16,uint256,uint256,uint256)
+        - event: Settled(indexed uint256,uint8,uint16,uint16,uint256,uint256,uint256,int256,uint256)
           handler: handleSettled
       file: ./src/vault.ts

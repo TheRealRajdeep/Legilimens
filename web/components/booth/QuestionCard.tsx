@@ -77,7 +77,7 @@ export function QuestionCard({
           ))}
         </div>
         <p className="text-(length:--text-whisper) text-faded">
-          Answer as your sealed trade honestly would. Keys 1–4 work too.
+          Answer as your sealed trade honestly would: the seal checks your answers, and lies forfeit the stake. Keys 1–4 work too.
         </p>
       </div>
     </section>

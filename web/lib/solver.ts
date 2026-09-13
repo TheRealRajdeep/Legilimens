@@ -156,12 +156,6 @@ export function finalGuess(seed: string, answers: Answer[], prior: number[]): Gu
   return { code: JOBS[best].code, title: JOBS[best].title, confidence: posterior[best], askedTraits };
 }
 
-/** Packs answers into the bytes10 the contract stores, one byte per answer. */
-export function packAnswers(answers: Answer[]): `0x${string}` {
-  if (answers.length !== QUESTION_BUDGET) throw new Error(`need ${QUESTION_BUDGET} answers`);
-  return `0x${answers.map((a) => a.toString(16).padStart(2, "0")).join("")}`;
-}
-
 export function unpackAnswers(packed: string): Answer[] {
   const hex = packed.replace(/^0x/, "");
   const out: Answer[] = [];
@@ -182,4 +176,57 @@ export function sampleAnswer(jobIndex: number, traitIndex: number, rand: () => n
 
 export function jobByCode(code: number): Job | undefined {
   return JOBS.find((j) => j.code === code);
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Consistency ("does the transcript fit the sealed job?") — mirrored exactly by LegilimensVault.
+// Integer maths only, so the contract and this file always agree.
+// ---------------------------------------------------------------------------------------------------
+
+/** LOGLIK[answer][digit] = round(1000 · ln P(answer | trait digit)), in milli-nats. */
+export const LOGLIK: number[][] = ([0, 1, 2, 3] as Answer[]).map((a) =>
+  Array.from({ length: 10 }, (_, d) => Math.round(1000 * Math.log(answerLikelihood(a, Math.min(0.97, Math.max(0.03, d / 9)))))),
+);
+
+/** Score ≥ this: answers fit the seal; full prize. */
+export const FIT_FULL = -2000;
+/** Score < this: answers contradict the seal; stake forfeited. Between the two the prize scales linearly. */
+export const FIT_FORFEIT = -6000;
+
+const DIGITS: number[][] = JOBS.map((job) => [...job.p].map(Number));
+
+export type Fit = {
+  /** logL(sealed job) − max over jobs of logL(job), in milli-nats. 0 means the sealed job fits best. */
+  score: number;
+  /** Share of the pot prize kept, in basis points (10000 = full). 0 below FIT_FORFEIT. */
+  fitBps: number;
+  forfeit: boolean;
+  /** Best-fitting job for these answers, for the result screen. */
+  bestCode: number;
+};
+
+export function consistency(sealedCode: number, traits: number[], answers: Answer[]): Fit {
+  const row = JOBS.findIndex((j) => j.code === sealedCode);
+  let best = -Infinity;
+  let bestRow = 0;
+  const ll = DIGITS.map((digits, j) => {
+    let sum = 0;
+    for (let k = 0; k < traits.length; k++) sum += LOGLIK[answers[k]][digits[traits[k]]];
+    if (sum > best) {
+      best = sum;
+      bestRow = j;
+    }
+    return sum;
+  });
+  if (row < 0) return { score: -Infinity, fitBps: 0, forfeit: true, bestCode: JOBS[bestRow].code };
+  const score = ll[row] - best;
+  const forfeit = score < FIT_FORFEIT;
+  const fitBps = forfeit ? 0 : score >= FIT_FULL ? 10000 : Math.floor(((score - FIT_FORFEIT) * 10000) / (FIT_FULL - FIT_FORFEIT));
+  return { score, fitBps, forfeit, bestCode: JOBS[bestRow].code };
+}
+
+/** Packs trait indices (or answers) into a bytes10 hex string, one byte each. */
+export function packBytes10(values: number[]): `0x${string}` {
+  if (values.length !== QUESTION_BUDGET) throw new Error(`need ${QUESTION_BUDGET} values`);
+  return `0x${values.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }

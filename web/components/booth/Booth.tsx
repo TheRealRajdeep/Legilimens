@@ -7,7 +7,7 @@ import { vaultAbi } from "@/lib/abi";
 import { chain, GameStatus, Outcome, VAULT_ADDRESS } from "@/lib/config";
 import { forgetSeal, jobCommitment, latestSeal, newSalt, saveSeal, type SealedGame } from "@/lib/commit";
 import { shortAddress, usdc } from "@/lib/format";
-import { jobByCode, QUESTION_BUDGET, type Job } from "@/lib/solver";
+import { consistency, jobByCode, QUESTION_BUDGET, unpackAnswers, type Job } from "@/lib/solver";
 import { useVault } from "@/hooks/useVault";
 import { Candle } from "../props/Candle";
 import { Cauldron } from "../props/Cauldron";
@@ -24,7 +24,17 @@ import { WorldGate } from "./WorldGate";
 
 type Stage = "landing" | "verify" | "seal" | "questions" | "guess" | "result";
 
-type Settlement = { outcome: Outcome; payout: bigint; guessCode: number; jobCode: number; txHash: Hex };
+type Settlement = {
+  outcome: Outcome;
+  payout: bigint;
+  guessCode: number;
+  jobCode: number;
+  txHash: Hex;
+  /** Share of the prize kept for answer fit, 0..10000. */
+  fitBps: number;
+  /** Job the answers actually pointed to, when it differs from the seal. */
+  pointedTo?: number;
+};
 
 const delay = (i: number) => ({ "--i": i }) as CSSProperties;
 
@@ -63,7 +73,7 @@ export function Booth() {
     client
       .readContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: "games", args: [BigInt(seal.gameId)] })
       .then((g) => {
-        const status = g[10];
+        const status = g[11];
         const resumedJob = jobByCode(seal.jobCode);
         if (status === GameStatus.Open) {
           setGame(seal);
@@ -198,12 +208,17 @@ export function Booth() {
       const receipt = await client.waitForTransactionReceipt({ hash });
       const [settled] = parseEventLogs({ abi: vaultAbi, logs: receipt.logs, eventName: "Settled" });
       if (!settled) throw new Error("Reveal confirmed but no settlement event was found.");
+      // Recompute the fit locally from the published transcript to explain the verdict.
+      const g = await client.readContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: "games", args: [BigInt(game.gameId)] });
+      const local = consistency(game.jobCode, unpackAnswers(g[9]), unpackAnswers(g[10]));
       setSettlement({
         outcome: settled.args.outcome as Outcome,
         payout: settled.args.payout,
         guessCode: settled.args.guessCode,
         jobCode: settled.args.jobCode,
         txHash: hash,
+        fitBps: Number(settled.args.fitBps),
+        pointedTo: local.bestCode !== game.jobCode ? local.bestCode : undefined,
       });
       setSealState("cracked");
       forgetSeal(game.gameId);
@@ -292,7 +307,8 @@ export function Booth() {
             <div>
               <dt className="brand text-(length:--text-lead) text-ember">The contract settles</dt>
               <dd className="text-faded">
-                Exact trade: the Seer wins. Right family, wrong trade: 90% back. Miss: your stake plus half the pot.
+                Exact trade: the Seer wins. Right family, wrong trade: 90% back. Miss: your stake plus half the pot, if your
+                answers truly fit your seal. Lie to the Seer and the stake is forfeit.
               </dd>
             </div>
           </dl>
@@ -322,7 +338,9 @@ export function Booth() {
             <WaxSeal state={sealState} label={sealState === "unsealed" ? undefined : job?.title} />
             <div className="text-center">
               <p className="text-(length:--text-lead) text-parchment">{job ? job.title : "No trade chosen"}</p>
-              <Whisper>Stake: {usdc(vault.stake)} USDC · lost if the Seer names it exactly</Whisper>
+              <Whisper>
+                Stake: {usdc(vault.stake)} USDC · lost if the Seer names it, or if your answers don&rsquo;t fit this trade
+              </Whisper>
             </div>
             <Button onClick={sealAndStake} disabled={!job || Boolean(busy) || sealState !== "unsealed"} className="w-full">
               {busy ?? "Seal it & stake"}
@@ -384,6 +402,8 @@ function ResultView({
 }) {
   const sealed = jobByCode(settlement.jobCode)?.title ?? "your trade";
   const guessed = jobByCode(settlement.guessCode)?.title ?? "something";
+  const pointed = settlement.pointedTo ? `a ${jobByCode(settlement.pointedTo)?.title}` : "a different trade";
+  const showFit = settlement.outcome === Outcome.Push || settlement.outcome === Outcome.PlayerWin || settlement.outcome === Outcome.Inconsistent;
   const view = {
     [Outcome.AgentWin]: {
       mood: "triumphant" as const,
@@ -401,9 +421,20 @@ function ResultView({
       mood: "stumped" as const,
       color: "text-moss",
       title: "The Seer is baffled.",
-      line: `You sealed ${sealed}; the Seer said ${guessed}. You take ${usdc(settlement.payout)} USDC from the pot.`,
+      line:
+        settlement.fitBps >= 10_000
+          ? `You sealed ${sealed}; the Seer said ${guessed}. You take ${usdc(settlement.payout)} USDC from the pot.`
+          : `You sealed ${sealed}; the Seer said ${guessed}. Some answers strayed from your trade, so you keep ${settlement.fitBps / 100}% of the prize: ${usdc(settlement.payout)} USDC.`,
     },
-  }[settlement.outcome as Outcome.AgentWin | Outcome.Push | Outcome.PlayerWin] ?? {
+    [Outcome.Inconsistent]: {
+      mood: "triumphant" as const,
+      color: "text-hex",
+      title: "The seal does not lie.",
+      line: jobByCode(settlement.jobCode)
+        ? `You sealed ${sealed}, but your answers read like ${pointed}. The Seer won't pay for a riddle it was never meant to solve: your stake joins the pot.`
+        : "The sealed trade isn't one the Seer could ever name. Your stake joins the pot.",
+    },
+  }[settlement.outcome as Outcome.AgentWin | Outcome.Push | Outcome.PlayerWin | Outcome.Inconsistent] ?? {
     mood: "idle" as const,
     color: "text-parchment",
     title: "The game is settled.",
@@ -420,6 +451,7 @@ function ResultView({
       <div className="space-y-6">
         <h2 className={`brand text-(length:--text-marquee) leading-[0.95] ${view.color}`}>{view.title}</h2>
         <p className="max-w-prose text-(length:--text-lead) text-parchment">{view.line}</p>
+        {showFit ? <FitMeter bps={settlement.fitBps} /> : null}
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-(length:--text-whisper)">
           {startTx ? <TxLink hash={startTx} label="Seal" /> : null}
           <TxLink hash={settlement.txHash} label="Reveal & payout" />
@@ -428,5 +460,23 @@ function ResultView({
         <Button onClick={onAgain}>Challenge again</Button>
       </div>
     </section>
+  );
+}
+
+/** How well the answers matched the sealed trade, as the contract judged it. */
+function FitMeter({ bps }: { bps: number }) {
+  const pct = Math.round(bps / 100);
+  const tone = bps >= 10_000 ? "bg-verdigris" : bps > 0 ? "bg-ember" : "bg-hex";
+  return (
+    <div className="max-w-md space-y-1.5">
+      <div className="flex items-baseline justify-between text-(length:--text-whisper)">
+        <span className="text-parchment">Answers fit your seal</span>
+        <span className="brand text-(length:--text-lead) text-parchment">{pct}%</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-soot" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Answer fit">
+        <div className={`h-full origin-left ${tone}`} style={{ transform: `scaleX(${bps / 10_000})`, transition: "transform 900ms var(--ease-out)" }} />
+      </div>
+      <p className="text-(length:--text-whisper) text-faded">Checked on-chain against the Seer&rsquo;s published ledger when the seal broke.</p>
+    </div>
   );
 }

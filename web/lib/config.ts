@@ -40,4 +40,6 @@ export enum Outcome {
   PlayerWin = 3,
   Forfeit = 4,
   Refund = 5,
+  /** Answers didn't fit the sealed job (or the job isn't in the ledger): stake forfeited. */
+  Inconsistent = 6,
 }

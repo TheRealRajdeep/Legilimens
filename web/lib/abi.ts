@@ -47,6 +47,19 @@ export const vaultAbi = [
   },
   {
     "type": "function",
+    "name": "MATRIX_HASH",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_PLAYS_PER_DAY",
     "inputs": [],
     "outputs": [
@@ -138,6 +151,45 @@ export const vaultAbi = [
   },
   {
     "type": "function",
+    "name": "fit",
+    "inputs": [
+      {
+        "name": "jobCode",
+        "type": "uint16",
+        "internalType": "uint16"
+      },
+      {
+        "name": "traits",
+        "type": "bytes10",
+        "internalType": "bytes10"
+      },
+      {
+        "name": "answers",
+        "type": "bytes10",
+        "internalType": "bytes10"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "score",
+        "type": "int256",
+        "internalType": "int256"
+      },
+      {
+        "name": "bps",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "forfeit",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
     "name": "forfeit",
     "inputs": [
       {
@@ -204,6 +256,11 @@ export const vaultAbi = [
         "name": "guessCode",
         "type": "uint16",
         "internalType": "uint16"
+      },
+      {
+        "name": "traits",
+        "type": "bytes10",
+        "internalType": "bytes10"
       },
       {
         "name": "answers",
@@ -441,6 +498,11 @@ export const vaultAbi = [
         "internalType": "bytes32"
       },
       {
+        "name": "traits",
+        "type": "bytes10",
+        "internalType": "bytes10"
+      },
+      {
         "name": "answers",
         "type": "bytes10",
         "internalType": "bytes10"
@@ -512,6 +574,12 @@ export const vaultAbi = [
         "type": "bytes32",
         "indexed": false,
         "internalType": "bytes32"
+      },
+      {
+        "name": "traits",
+        "type": "bytes10",
+        "indexed": false,
+        "internalType": "bytes10"
       },
       {
         "name": "answers",
@@ -598,6 +666,18 @@ export const vaultAbi = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "fitScore",
+        "type": "int256",
+        "indexed": false,
+        "internalType": "int256"
+      },
+      {
+        "name": "fitBps",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -615,6 +695,11 @@ export const vaultAbi = [
   {
     "type": "error",
     "name": "BadSignature",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadTranscript",
     "inputs": []
   },
   {

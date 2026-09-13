@@ -11,6 +11,7 @@ enum Outcome {
   PlayerWin
   Forfeit
   Refund
+  Inconsistent
 }
 
 """
@@ -33,6 +34,8 @@ type Game @entity(immutable: false) {
   "Set when the Seer submits its guess. seed + answers + matrix + prior replay the whole game."
   guessCode: Int
   seed: Bytes
+  "Trait index asked by each question (bytes10)"
+  traits: Bytes
   answers: Bytes
   operatingCost: BigInt
   guessedAt: BigInt
@@ -43,6 +46,9 @@ type Game @entity(immutable: false) {
   jobCode: Int
   payout: BigInt
   potAfter: BigInt
+  "How well the answers fit the sealed job: log-likelihood gap in milli-nats (0 = best fit) and prize share kept"
+  fitScore: BigInt
+  fitBps: BigInt
   settledBlock: BigInt
   settledAt: BigInt
   settleTx: Bytes
@@ -68,6 +74,8 @@ type JobStat @entity(immutable: false) {
   agentWins: Int!
   pushes: Int!
   playerWins: Int!
+  "Reveals where the answers contradicted the sealed job"
+  inconsistent: Int!
 }
 
 "Singleton (id = vault address) with live booth totals."
@@ -81,5 +89,6 @@ type Vault @entity(immutable: false) {
   agentWins: Int!
   pushes: Int!
   playerWins: Int!
+  inconsistent: Int!
   totalPaidOut: BigInt!
 }

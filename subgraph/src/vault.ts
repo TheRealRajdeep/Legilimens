@@ -3,7 +3,7 @@ import { GameStarted, GuessSubmitted, PotSeeded, Settled } from "../generated/Le
 import { Game, JobStat, Player, Vault } from "../generated/schema";
 
 // Mirrors LegilimensVault.Outcome
-const OUTCOMES = ["None", "AgentWin", "Push", "PlayerWin", "Forfeit", "Refund"];
+const OUTCOMES = ["None", "AgentWin", "Push", "PlayerWin", "Forfeit", "Refund", "Inconsistent"];
 
 function loadVault(address: Address): Vault {
   let vault = Vault.load(address);
@@ -17,6 +17,7 @@ function loadVault(address: Address): Vault {
     vault.agentWins = 0;
     vault.pushes = 0;
     vault.playerWins = 0;
+    vault.inconsistent = 0;
     vault.totalPaidOut = BigInt.zero();
   }
   return vault;
@@ -46,6 +47,7 @@ function loadJobStat(code: i32): JobStat {
     stat.agentWins = 0;
     stat.pushes = 0;
     stat.playerWins = 0;
+    stat.inconsistent = 0;
   }
   return stat;
 }
@@ -85,6 +87,7 @@ export function handleGuessSubmitted(event: GuessSubmitted): void {
   game.status = "Guessed";
   game.guessCode = event.params.guessCode;
   game.seed = event.params.seed;
+  game.traits = event.params.traits;
   game.answers = event.params.answers;
   game.operatingCost = event.params.operatingCost;
   game.guessedAt = event.block.timestamp;
@@ -107,6 +110,8 @@ export function handleSettled(event: Settled): void {
   game.jobCode = event.params.jobCode;
   game.payout = event.params.payout;
   game.potAfter = event.params.potAfter;
+  game.fitScore = event.params.fitScore;
+  game.fitBps = event.params.fitBps;
   game.settledBlock = event.block.number;
   game.settledAt = event.block.timestamp;
   game.settleTx = event.transaction.hash;
@@ -121,7 +126,15 @@ export function handleSettled(event: Settled): void {
   const player = loadPlayer(Address.fromBytes(game.player));
   player.totalPaidOut = player.totalPaidOut.plus(event.params.payout);
 
-  if (outcome == "AgentWin" || outcome == "Push" || outcome == "PlayerWin") {
+  if (outcome == "Inconsistent") {
+    vault.inconsistent += 1;
+    player.losses += 1;
+    if (event.params.jobCode != 0) {
+      const stat = loadJobStat(event.params.jobCode as i32);
+      stat.inconsistent += 1;
+      stat.save();
+    }
+  } else if (outcome == "AgentWin" || outcome == "Push" || outcome == "PlayerWin") {
     const stat = loadJobStat(event.params.jobCode as i32);
     stat.revealed += 1;
     if (outcome == "AgentWin") {

@@ -2,7 +2,7 @@ import { vaultAbi } from "@/lib/abi";
 import { GameStatus, VAULT_ADDRESS } from "@/lib/config";
 import { agentAccount, agentWallet, publicClient } from "@/lib/server/agent";
 import { errorResponse, loadGame, parseAnswers, RequestError } from "@/lib/server/game";
-import { finalGuess, jobByCode, packAnswers } from "@/lib/solver";
+import { finalGuess, jobByCode, packBytes10 } from "@/lib/solver";
 
 type Body = { gameId?: string; answers?: unknown };
 
@@ -21,7 +21,9 @@ export async function POST(request: Request) {
     if (game.status !== GameStatus.Open) throw new RequestError("game is already settled", 409);
 
     const guess = finalGuess(seed, answers, prior);
-    const packed = packAnswers(answers);
+    // Publish which trait each question asked alongside the answers: the contract scores the fit at reveal.
+    const traits = packBytes10(guess.askedTraits);
+    const packed = packBytes10(answers);
     const computeFee = BigInt(process.env.AGENT_COMPUTE_FEE_WEI ?? "0");
 
     const account = agentAccount();
@@ -30,7 +32,7 @@ export async function POST(request: Request) {
       address: VAULT_ADDRESS,
       abi: vaultAbi,
       functionName: "submitGuess",
-      args: [gameId, guess.code, seed, packed, computeFee],
+      args: [gameId, guess.code, seed, traits, packed, computeFee],
     });
     const gasPrice = await publicClient.getGasPrice();
     const operatingCost = gasEstimate * gasPrice + computeFee;
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
       address: VAULT_ADDRESS,
       abi: vaultAbi,
       functionName: "submitGuess",
-      args: [gameId, guess.code, seed, packed, operatingCost],
+      args: [gameId, guess.code, seed, traits, packed, operatingCost],
       gas: (gasEstimate * 12n) / 10n,
     });
     const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
