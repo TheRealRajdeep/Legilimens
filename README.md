@@ -10,7 +10,7 @@
 Stake 1 USDC. Seal your job in wax. If the Seer names it, it keeps your coin.<br/>
 If it can't, you take half the pot. And if you lie to it, the seal knows.
 
-`Arc` · `The Graph` &nbsp;·&nbsp; built for **ETHOnline 2026**
+`Arc` · `The Graph` · `ENS` &nbsp;·&nbsp; built for **ETHOnline 2026**
 
 </div>
 
@@ -25,6 +25,7 @@ If it can't, you take half the pot. And if you lie to it, the seal knows.
 - [Catching liars on-chain](#catching-liars-on-chain)
 - [Provable fairness](#provable-fairness)
 - [The Seer's economy](#the-seers-economy)
+- [The Seer on ENS](#the-seer-on-ens)
 - [Sponsor tracks](#sponsor-tracks)
 - [Deployments](#deployments)
 - [Run it locally](#run-it-locally)
@@ -50,6 +51,7 @@ If it can't, you take half the pot. And if you lie to it, the seal knows.
 3. **Answer ten questions** with *Yes · Probably · Probably not · No*. The Seer picks each question to learn as much as possible about you.
 4. **The Seer guesses.** Its wallet posts the guess plus its seed and the full transcript on-chain.
 5. **Break the seal.** You reveal your job and salt, and **the contract alone** decides the outcome and pays out in the same transaction.
+6. **Your reading is inscribed on ENS.** The Seer writes your record to your own name, `<wallet>.players.legilimens.eth`. Get caught lying twice and it won't read you again.
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"fontFamily":"Georgia, serif","actorBkg":"#231C31","actorBorder":"#E2A83B","actorTextColor":"#EDE3CC","actorLineColor":"#B9AD93","signalColor":"#E2A83B","signalTextColor":"#E2A83B","labelBoxBkgColor":"#2E2340","labelBoxBorderColor":"#E2A83B","labelTextColor":"#EDE3CC","loopTextColor":"#E2A83B","noteBkgColor":"#EDE3CC","noteTextColor":"#2A2233","noteBorderColor":"#C4472D","activationBkgColor":"#2E2340","activationBorderColor":"#3FB6A8","sequenceNumberColor":"#15111F"}}}%%
@@ -110,6 +112,12 @@ flowchart TB
         SG[("Subgraph<br/>games · players · job stats")]
     end
 
+    subgraph Names["🪪 ENSv2 · Sepolia"]
+        direction LR
+        SEER["seer.legilimens.eth<br/>agent identity · booth config"]
+        PLAYERS["*.players.legilimens.eth<br/>player reputation"]
+    end
+
     UI --> WV
     UI <--> Q
     UI --> GU
@@ -119,11 +127,14 @@ flowchart TB
     VAULT -- "events" --> SG
     SG -- "prior as of startBlock" --> Q
     SG -. "booth's ledger" .-> UI
+    SEER -- "vault · subgraph · matrix hash" --> Q
+    GU -- "inscribe reading<br/>(delegated roles)" --> PLAYERS
 
     classDef chain fill:#2E2340,stroke:#3FB6A8,stroke-width:2px,color:#EDE3CC
     classDef index fill:#231C31,stroke:#3FB6A8,color:#EDE3CC
     class VAULT,MATRIX chain
     class SG index
+    class SEER,PLAYERS chain
 ```
 
 | Layer | What it does | Where |
@@ -131,7 +142,8 @@ flowchart TB
 | **Contract** | Escrows stakes, locks the job and seed commitments, enforces the per-wallet daily quota, scores answer fit, settles and pays out atomically | [`contracts/src/LegilimensVault.sol`](contracts/src/LegilimensVault.sol) |
 | **On-chain matrix** | The Seer's knowledge, generated from `matrix.json` so the solver and contract can never drift | [`contracts/src/SeerMatrix.sol`](contracts/src/SeerMatrix.sol) |
 | **Solver** | Bayesian posterior over 66 jobs, picks the most informative question with a seeded softmax | [`web/lib/solver.ts`](web/lib/solver.ts) |
-| **Server** | Start signatures, question and guess routes. Stateless: seeds are re-derived from chain data | [`web/app/api`](web/app/api) |
+| **Server** | Start signatures, question and guess routes, ENS reputation writes. Stateless: its config comes from ENS and seeds are re-derived from chain data | [`web/app/api`](web/app/api) |
+| **ENS** | The Seer's agent identity and published config (`seer.legilimens.eth`), plus the player reputation names it is delegated to write | [`web/lib/server/booth.ts`](web/lib/server/booth.ts), [`reputation.ts`](web/lib/server/reputation.ts), [`scripts/ens-setup.ts`](web/scripts/ens-setup.ts) |
 | **Subgraph** | Indexes every game; the Seer's prior and the booth's ledger read from it | [`subgraph/`](subgraph) |
 | **Frontend** | The candlelit booth: wax seals, scrying orb, filling pot, the Seer's candle | [`web/components`](web/components) |
 
@@ -347,6 +359,58 @@ flowchart LR
 
 ---
 
+## The Seer on ENS
+
+The Seer is an AI agent, and ENSv2 gives it a **namespace with delegated permissions**. Legilimens uses that as real infrastructure.
+
+```mermaid
+%%{init: {"theme":"base","flowchart":{"curve":"basis"},"themeVariables":{"fontFamily":"Georgia, serif","primaryColor":"#231C31","primaryTextColor":"#EDE3CC","primaryBorderColor":"#E2A83B","lineColor":"#E2A83B","clusterBkg":"#2E234022","clusterBorder":"#8A6A3A","edgeLabelBackground":"#15111F","titleColor":"#8A6A3A"}}}%%
+flowchart TB
+    OWNER(["Booth owner<br/>human wallet"])
+    subgraph ENS["ENSv2 on Sepolia"]
+        BOOTH["legilimens.eth"]
+        SEER["seer.legilimens.eth<br/>addr: Seer wallet on ETH + Arc<br/>agent-context · legilimens.vault<br/>legilimens.subgraph · legilimens.matrixHash"]
+        REG["players.legilimens.eth<br/>subregistry"]
+        P1["4f852304.players.legilimens.eth<br/>owned by the player<br/>readings · named · baffled · caughtLying"]
+    end
+    AGENT(["The Seer<br/>AI agent wallet"])
+    APP["Booth app + replay script"]
+
+    OWNER -- "owns, full control" --> BOOTH
+    BOOTH --> SEER
+    BOOTH --> REG
+    REG --> P1
+    OWNER -. "ROLE_REGISTRAR<br/>on players registry only" .-> AGENT
+    OWNER -. "text roles<br/>per record key only" .-> AGENT
+    AGENT -- "creates player names" --> REG
+    AGENT -- "writes legilimens.* reputation" --> P1
+    SEER -- "config read at runtime" --> APP
+
+    classDef human fill:#EDE3CC,stroke:#C4472D,color:#2A2233
+    classDef agent fill:#2E2340,stroke:#3FB6A8,stroke-width:2px,color:#EDE3CC
+    class OWNER human
+    class AGENT agent
+```
+
+**1. The Seer's identity and config live on its name.** `seer.legilimens.eth` publishes:
+- its wallet, as address records for both Ethereum and Arc (ENSIP-11 coin type)
+- ENSIP-26 agent records: `agent-context` and `agent-endpoint[web]`
+- `legilimens.vault`, `legilimens.subgraph`, `legilimens.matrixHash` and `legilimens.vaultDeployBlock`
+
+The app and the replay script **read their configuration from these records at runtime**, so there are no hard-coded addresses. The server also checks that the published matrix hash and wallet match what the vault actually enforces before trusting them. Moving the booth to a new vault means updating one ENS record.
+
+**2. The agent gets narrow, delegated permissions.** The booth owner keeps full control of `legilimens.eth` and grants the Seer's wallet only two things through ENSv2 Enhanced Access Control:
+- `ROLE_REGISTRAR` on the `players.legilimens.eth` subregistry, so it can create player names and do nothing else on the registry
+- permissioned-resolver text roles scoped to **individual record keys** (`legilimens.readings`, `legilimens.caughtLying`, and so on)
+
+The setup script checks on-chain that the Seer *can* write a player's reading and *cannot* change its own published vault record.
+
+**3. Players own reputation they can't forge.** After each game the Seer registers `<wallet-prefix>.players.legilimens.eth`, owned by the player, and writes their record: readings, named, close, baffled, caughtLying and lastReading. The player owns the name but holds no roles on it, so they can't point it at another resolver to hide a bad record.
+
+**4. The Seer remembers liars.** Before authorising a game, the Seer reads the player's name. Anyone with `legilimens.caughtLying ≥ 2` is refused. This was verified on testnet: a wallet caught lying in games #12 and #13 was turned away on its next attempt.
+
+---
+
 ## Sponsor tracks
 
 ### Arc: DeFi and Agentic Economy
@@ -361,6 +425,12 @@ flowchart LR
 - **Deterministic by design.** Querying only games settled before the start block makes every prior reproducible for replays.
 - **Product surface:** the booth's ledger (recent readings, Seer win and loss counts, caught liars) comes straight from the subgraph.
 
+### ENS: Best Use of ENSv2
+
+- **An AI agent as a namespace with delegated permissions.** `seer.legilimens.eth` is the agent's identity (ENSIP-26 records), and the owner delegates it `ROLE_REGISTRAR` on a subregistry and **per-key** text roles through the Permissioned Resolver. That's Enhanced Access Control used for exactly what it's for.
+- **Central, not cosmetic.** The app and replay script take their configuration from ENS, player reputation lives on ENS names, and that reputation gates who may play.
+- **Hierarchical registries:** `legilimens.eth` → `players.legilimens.eth` subregistry → per-player names, resolved through the ENSv2 Universal Resolver.
+
 
 ---
 
@@ -372,6 +442,15 @@ flowchart LR
 | **Seer wallet** | [`0x7224F3c2E7c97Bbde716d123C3Ad6865AdAA7080`](https://testnet.arcscan.app/address/0x7224F3c2E7c97Bbde716d123C3Ad6865AdAA7080) |
 | **Subgraph** | `https://api.studio.thegraph.com/query/1760267/guessworker/v0.0.2` |
 | **Stake** | 1 USDC |
+
+| | ENSv2 (Sepolia) |
+|---|---|
+| **Booth** | [`legilimens.eth`](https://sepolia.app.ens.domains/legilimens.eth) |
+| **The Seer** | [`seer.legilimens.eth`](https://sepolia.app.ens.domains/seer.legilimens.eth) |
+| **Players** | `players.legilimens.eth` subregistry `0x5172382035fEb06171beE68F1eE6D873Bd6d2870` |
+| **Resolver** | Permissioned resolver `0x6618dA29fbF236B556180e366077139006060C3b` |
+
+**Live app:** https://legilimens-rho.vercel.app
 
 ---
 
@@ -405,11 +484,20 @@ If you change `web/lib/matrix.json`, regenerate the on-chain copy with `node web
 ```bash
 cd web
 pnpm install
-cp .env.example .env.local   # fill in vault address, Seer key, subgraph URL
+cp .env.example .env.local   # Seer key + seed secret; vault and subgraph come from seer.legilimens.eth
 pnpm dev                     # http://localhost:3000
 ```
 
 > **Font:** the Grostel display font in `web/assets/fonts/grostel/` is a demo-licensed font from Zeenesia Studio (license in `misc/`). Point `web/app/layout.tsx` at another font for any commercial use.
+
+### ENS
+
+```bash
+cd web
+node scripts/ens-setup.ts    # idempotent: registers legilimens.eth, the Seer and players names, delegates roles, publishes records
+```
+
+It reads the vault and subgraph from `.env.local` once, publishes them on `seer.legilimens.eth`, and generates the booth owner's key into `.env.local` if one isn't there. The owner key is only for setup; never deploy it to the app host.
 
 ### Subgraph
 
@@ -429,6 +517,7 @@ node scripts/sim.ts 3000                         # Seer calibration + hardest jo
 APP_URL=http://localhost:3000 RPC_URL=https://rpc.testnet.arc.network \
   VAULT=0x8286… PLAYER_KEY=0x… node scripts/e2e-local.ts 5411          # honest game
 LIAR=1 … node scripts/e2e-local.ts 2221                                 # liar game → Inconsistent
+RECORD=1 … node scripts/e2e-local.ts 5411                               # also inscribe the reading on ENS
 ```
 
 ---
@@ -439,10 +528,10 @@ LIAR=1 … node scripts/e2e-local.ts 2221                                 # liar
 contracts/        Foundry: LegilimensVault, generated SeerMatrix, tests, deploy script
 subgraph/         The Graph: schema, mappings, manifest (network: arc-testnet)
 web/
-  app/api/        start signing, question, guess routes
+  app/api/        start signing, question, guess, booth config and ENS reputation routes
   components/     Booth flow + props (Seer card, wax seal, orb, pot, candle, coins)
   lib/            solver.ts, matrix.json, commit–reveal helpers, server clients
-  scripts/        sim, e2e, matrix → Solidity generator
+  scripts/        sim, e2e, replay, ENS setup, matrix → Solidity generator
 art/              Art pipeline: process_art.py turns raw art into web assets
 DESIGN.md         Full product and visual design, plus the mascot brief
 CHECKLIST.md      Build checklist and shared technical decisions
@@ -461,7 +550,10 @@ CHECKLIST.md      Build checklist and shared technical decisions
 | Pot can't be over-drawn | **Trustless** (share-of-pot payouts, invariant tested) |
 | 3 games a day per wallet | **Trustless** (on-chain quota keyed by `keccak256(wallet)`). There's no proof-of-personhood, so one person can play from several wallets |
 | The `traits` the Seer publishes match the questions it actually asked | **Publicly verifiable** by replaying the solver from seed + answers + prior |
-| The Seer's matrix is the published one | **Verifiable:** `MATRIX_HASH` on-chain |
+| The Seer's matrix is the published one | **Verifiable:** `MATRIX_HASH` on-chain, also published on `seer.legilimens.eth` |
+| The booth's config is authentic | **Verifiable:** read from `seer.legilimens.eth`, owned by the booth owner; the server rejects records that don't match the vault |
+| Player reputation is accurate | **Delegated agent:** only the Seer can write `legilimens.*` keys, and only from settled on-chain games. The writes happen just after settlement on Sepolia, not atomically with the Arc payout |
+| Liars get refused | **Trusted server:** the Seer checks `caughtLying` before signing a start. A liar can switch to a fresh wallet |
 
 **Roadmap**
 - A "verify this game" button in the UI, running the replay in the browser.

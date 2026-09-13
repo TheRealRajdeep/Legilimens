@@ -32,6 +32,13 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
 - **Start signature:** the agent key signs an EIP-191 personal message over `keccak256(abi.encode(chainid, vault, player, jobCommit, seedCommit, playerKey, expiry))`. It binds the seed to the game and can only be used from the player's own wallet.
 - **Transcript on-chain:** `submitGuess` also takes `bytes10 answers`, one byte per question (0 = No, 1 = Probably Not, 2 = Probably, 3 = Yes). Questions are re-derived from seed + answers, so any game can be replayed from chain data alone.
 - **Deterministic prior:** the solver prior comes from the subgraph's settled games **as of the game's `startBlock`** (a Graph time-travel query), so replays stay exact even as history grows.
+- **ENS (third partner prize, replacing World):** ENSv2 beta on Sepolia.
+  - `legilimens.eth` is owned by the booth owner (`ENS_OWNER_PRIVATE_KEY`, setup only, never on Vercel).
+  - `seer.legilimens.eth` is the agent's identity. It publishes `legilimens.vault`, `legilimens.subgraph`, `legilimens.matrixHash`, `legilimens.vaultDeployBlock`, ENSIP-26 `agent-context`, and addr records for ETH and Arc.
+  - The app reads its booth config from these records (`web/lib/server/booth.ts`, `/api/booth`). `NEXT_PUBLIC_SEER_ENS` defaults to `seer.legilimens.eth`; set it empty for local anvil.
+  - `players.legilimens.eth` is a subregistry. The Seer holds only `ROLE_REGISTRAR` there, plus per-key text roles on the owner's permissioned resolver.
+  - After each settlement it writes `<wallet-prefix>.players.legilimens.eth`: `legilimens.readings / named / close / baffled / caughtLying / lastReading` (`web/lib/server/reputation.ts`).
+  - `/api/start` refuses wallets with `caughtLying ≥ 2`.
 - **Quota:** 3 games per wallet per UTC day (`block.timestamp / 1 days`). The vault's `nullifierHash` argument carries `playerKey = keccak256(lowercase wallet address)`. World ID was dropped, so there is no proof-of-personhood gate.
 - **Timeouts:** guess within 30 min of start, otherwise `refund`. Reveal within 30 min of the guess, otherwise `forfeit`.
 - **Solver:** **10 questions**, softmax temperature **0.03**, over 66 jobs × 24 traits. Answer model: Yes = 0.75p + 0.0125, Probably = 0.2p + 0.0125, Probably Not = 0.2(1-p) + 0.0125, No = 0.75(1-p) + 0.0125. The next question is picked by a softmax over information gain, using a PRNG seeded from `${seed}:${step}`. The guess is the posterior argmax, with ties going to the lower index.
@@ -193,13 +200,34 @@ Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole s
 - [x] **X4** UI: answer-fit meter and "The seal does not lie." verdict on the result screen; honesty warning on the seal and question screens; the ledger counts caught liars. *(me)*
 - [x] **X5** README section explaining the attack, the check, the numbers and the residual smart-liar edge. *(free)* Done: README section "Catching liars on-chain".
 
+## 6d. ENS (Best Use of ENSv2)
+
+- [x] **N1** `web/scripts/ens-setup.ts` (idempotent), run on Sepolia. It:
+  - registered `legilimens.eth` (paid in mintable test USDC)
+  - deployed the owner's permissioned resolver and the `legilimens.eth` and `players.legilimens.eth` subregistries
+  - created `seer` and `players`
+  - granted the Seer `ROLE_REGISTRAR` on the players registry and 9 per-key text roles
+  - published 11 text records and 2 addr records
+  - verified on-chain that the Seer can write a player key but can't change its published vault record
+
+  Resolver `0x6618dA29fbF236B556180e366077139006060C3b`, players registry `0x5172382035fEb06171beE68F1eE6D873Bd6d2870`. *(me)*
+- [x] **N2** Booth config from ENS: server `getBooth()` checks the ENS matrix hash and agent against the vault; client `BoothProvider`; the replay script resolves the same records. No hard-coded vault or subgraph. *(me)*
+- [x] **N3** Player reputation names and liar memory. Verified on testnet with a fresh wallet:
+  - Game #11 (honest), then #12 and #13 (lies) were inscribed with `caughtLying 2`.
+  - The next start was refused with "The Seer remembers 0c69fa14.players.legilimens.eth…".
+  - Earlier players were backfilled (games #8 and #10). *(me)*
+- [x] **N4** UI: the Seer's ENS identity on the landing page, player ENS names in the ledger, and an "Inscribed on …" note on the result screen. *(me)*
+- [x] **N5** README: "The Seer on ENS" section with diagram, ENS track write-up, deployments, trust rows. *(me)*
+- [ ] **N6** Optional: transfer `legilimens.eth` from the generated owner wallet to your own wallet. *(you)*
+- Note: don't set a resolver alias on `legilimens.eth`. ENSv2 aliases whole namespaces, and it broke resolution of `seer.legilimens.eth`, so it was removed.
+
 ## 7. Ship
 
 - [ ] **D1** One real game per outcome (agent win, push, player win) on Arc testnet, with tx hashes saved in `DEMO_NOTES.md`. **Needs:** F8. *(you)*
 - [x] **D2** Architecture diagram, required by Arc. *(free)* Done: architecture mermaid diagram in the README. Export it to PNG for the submission form if needed.
 - [x] **D3** README covering: pitch, how it works, provable-fairness replay, matrix hash, v1 trust boundary, v2 roadmap, sponsor usage per track. *(free)* Done: `README.md` with 8 mermaid diagrams, all render-checked in light and dark themes. Update the replay section once M5 lands.
 - [ ] **D4** Record the demo: agent win → player win → explorer → subgraph query. *(you)*
-- [ ] **D5** ETHGlobal submission: 2 partner prizes (Arc, The Graph). *(you)*
+- [ ] **D5** ETHGlobal submission: 3 partner prizes (Arc, The Graph, ENS). *(you)*
 - [ ] **D6** After the deadline, between Sep 16 and 30: deploy to Arc Mainnet and update the submission for the bonuses. *(you)*
 
 ---
