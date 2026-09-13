@@ -160,7 +160,7 @@ The app picks the image from the game state. Each mood is a **separate PNG with 
 
 | Screen | Mood(s) | Displayed width |
 |---|---|---|
-| Landing | idle | 240 px (cauldron overlaps just below the feet) |
+| Landing | idle | 250 px card, with the vault pot overlapping its bottom edge |
 | World ID gate | idle | 200 px |
 | Questions | thinking / idle / confident | 220 px |
 | Result | triumphant / confident / stumped | 230 px (cracked wax seal shown below) |
@@ -169,31 +169,45 @@ The app picks the image from the game state. Each mood is a **separate PNG with 
 
 ## 9. Technical asset specs
 
-- **Location:** `web/public/mascot/`
-- **Filenames (exact, lowercase):** `idle.png`, `thinking.png`, `confident.png`, `stumped.png`, `triumphant.png`
-- **Format:** PNG with a **transparent background**. No baked-in background, no text, no watermark.
-- **Aspect ratio:** **1 : 1.15** (width : height). The component box is `size × size·1.15` and the image is scaled to fit (`object-contain`).
-- **Canvas size:** **720 × 828 px** (3× the largest display size, so it stays sharp on retina screens). 1440 × 1656 is also fine.
-- **Framing:**
-  - Character centered horizontally.
-  - Feet or base about 3–5% above the bottom edge.
-  - Head or hat about 5% below the top edge.
-  - Leave ~6% side padding so flourishes (arms, cape) aren't clipped.
-  - Keep the same framing in all five files.
-- **Shadow:** don't paint a drop shadow under the figure. The app adds a soft dark drop shadow automatically. A contact shadow at the feet is fine.
-- **Glow:** a subtle verdigris or ember glow *on* the character is welcome. Avoid a large glow halo that fills the canvas; it will look like a box on the dark page.
-- **No code changes needed:** as soon as a file exists, it replaces the placeholder for that mood. Missing moods keep showing the placeholder, so you can add them one at a time.
+> **Status: art delivered and integrated.** The five Seer moods, the orb and the four-state vault pot are in the app.
 
-### Quick checklist before dropping art in
+### How the art is used
+- **The Seer is presented as a tarot card.** The generated art came with full booth backgrounds, which suit the theme, so each mood is a framed portrait card rather than a cut-out figure (`web/components/props/Seer.tsx`). Moods crossfade when the Seer's expression changes. The *thinking* card sways gently.
+- **The vault pot fills as the pot grows** (`web/components/props/Cauldron.tsx`), measured in stakes:
 
-- [ ] 5 files, exact names, transparent PNG
-- [ ] All 720×828 (1:1.15), identical framing and scale
-- [ ] Reads clearly at 200px wide on `#15111F`
-- [ ] Warm light from above-front, one verdigris accent
-- [ ] Grounded at the bottom (the thinking sway rotates around the base)
-- [ ] Personality reads: smug showman, honest, never scary
+  | State | Pot size |
+  |---|---|
+  | `empty` | 0 |
+  | `low` | under 3 stakes |
+  | `mid` | under 8 stakes |
+  | `full` | 8+ stakes, glowing |
 
----
+- **The orb** is the favicon and app icon (`web/app/icon.png`, `apple-icon.png`, `favicon.ico`). A transparent version is at `web/public/props/orb.webp`.
+
+### Files
+| Purpose | Source (raw, gitignored) | Web asset (generated) |
+|---|---|---|
+| Seer idle | `art/source/seer-idle.png` | `web/public/mascot/idle.webp` |
+| Seer thinking | `art/source/seer-thinking-sheet-3up.png` (3 variants) | `web/public/mascot/thinking.webp` (3rd variant), plus `thinking-alt-1.webp` and `thinking-alt-2.webp` |
+| Seer confident | `art/source/seer-confident.png` | `web/public/mascot/confident.webp` |
+| Seer triumphant | `art/source/seer-triumphant.png` | `web/public/mascot/triumphant.webp` |
+| Seer stumped | `art/source/seer-stumped.png` | `web/public/mascot/stumped.webp` |
+| Favicon orb | `art/source/orb-favicon.png` | `web/public/props/orb.webp`, `web/app/icon.png`, `apple-icon.png`, `favicon.ico` |
+| Vault pot (4 states) | `art/source/vault-pot-4-states.png` | `web/public/props/pot-{empty,low,mid,full}.webp` |
+
+### Regenerating
+Run `python art/process_art.py` (needs Pillow, numpy and scipy). The script handles the problems in the raw art:
+- It crops each scene to a **4:5 card at 800Ã—1000** WebP (about 70 KB, down from about 6 MB).
+- It cuts the thinking figure off its flat grey studio backdrop and places it on a generated candlelit card.
+- It removes the **painted "transparency" checkerboard** (the raw PNGs are fully opaque) from the orb and the pots.
+- It splits the pot sheet into its four states.
+- It paints out the generator's corner sparkle watermark.
+
+### If you replace or add art
+- **Seer moods:** any scene art works; the script crops it to 4:5. Keep the character centred, head in the top ~15%, feet visible.
+- **Real transparency is better** for props: export PNG with an actual alpha channel, not a checkerboard.
+- Avoid landscape sheets and multiple variants per file where possible, or update the crop boxes in `process_art.py`.
+- To use a different thinking variant, swap which file is written as `thinking.webp` in `main()`.
 
 ## 10. Starter prompt for an image generator
 
