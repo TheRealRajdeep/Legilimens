@@ -76,7 +76,7 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
 - [ ] **E8** World Developer Portal: create an app and an action `play-guessworker` with unlimited verifications.
   - Note `app_id` and `rp_id`.
   - Generate the **RP signing key**: IDKit v4 needs a server-signed `rp_context`. *(you)*
-- [ ] **E9** Subgraph Studio: create subgraph `guessworker` and copy the deploy key. *(you)*
+- [x] **E9** Subgraph Studio: create subgraph `guessworker` and copy the deploy key. *(you)* Done: Studio subgraph `guessworker`, authenticated.
 - [ ] **E10** Fill in `web/.env.local` (see `web/.env.example`, created in A1): `AGENT_PRIVATE_KEY`, `AGENT_SEED_SECRET`, `NEXT_PUBLIC_WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `NEXT_PUBLIC_WORLD_ACTION`, `NEXT_PUBLIC_WORLD_PRESET`, `NEXT_PUBLIC_VAULT_ADDRESS`, `NEXT_PUBLIC_SUBGRAPH_URL`. *(you)*
 - [x] **E11** Set up a root git repo and `.gitignore`. The Graph track requires an open-source repo. *(free)* Done: root repo, remote `origin` = github.com/TheRealRajdeep/ethonline, forge-std as a submodule. The Grostel font is **gitignored** because its license is personal-use only, so copy it in locally.
 
@@ -85,7 +85,7 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
 - [x] **M1** `web/lib/matrix.json`: ~66 jobs (4-digit ISCO-08 codes, several sharing a 3-digit family) × 24 traits, each with question text and per-job probabilities. *(me)*
 - [x] **M2** `web/lib/solver.ts`: prior, posterior update, information gain, seeded softmax pick, `nextQuestion(seed, answers, prior)`, `finalGuess(...)`. Pure TS, no deps. **Needs:** M1. *(me)*
 - [x] **M3** `web/scripts/sim.ts`: simulate N games with noisy synthetic players and print the exact/push/miss rates. Target roughly 55/28/17; tune the question count or softmax temperature to get there. Run with `node web/scripts/sim.ts`. **Needs:** M2. *(free)*
-- [ ] **M4** Publish `keccak256(matrix.json)` in the README. **Needs:** M1 final. *(free)*
+- [x] **M4** Publish `keccak256(matrix.json)` in the README. **Needs:** M1 final. *(free)* Done: the matrix hash is in the README and on-chain as `MATRIX_HASH`.
 - [ ] **M5** `web/scripts/replay.ts`: given `gameId`, read seed, answers and `startBlock` from chain, rebuild the prior via the subgraph at that block, rerun the solver, and assert that the guess matches. **Needs:** M2, C4, S2. *(free)*
 - [x] **M6** Find the jobs the solver misses most often, to use in the player-win demo take. Hardest jobs at the final settings (full list in `web/scripts/sim-results.txt`):
 
@@ -209,13 +209,13 @@ Use the `/impeccable`, `/frontend-design` and `/animate` skills for this whole s
   The smart liar's edge is the known residual; the World ID 3/day quota caps it. *(me)*
 - [x] **X3** Tests: 27/27, including exact TSâ†”Solidity score parity. Live on testnet: honest game #4 â†’ AgentWin at 100% fit; liar game #5 (sealed Nurse, answered as another job, Seer fooled into "Police Officer") â†’ **Inconsistent**, 0% fit, stake to pot. *(me)*
 - [x] **X4** UI: answer-fit meter and "The seal does not lie." verdict on the result screen; honesty warning on the seal and question screens; the ledger counts caught liars. *(me)*
-- [ ] **X5** README section explaining the attack, the check, the numbers and the residual smart-liar edge. *(free)*
+- [x] **X5** README section explaining the attack, the check, the numbers and the residual smart-liar edge. *(free)* Done: README section "Catching liars on-chain".
 
 ## 7. Ship
 
 - [ ] **D1** One real game per outcome (agent win, push, player win) on Arc testnet, with tx hashes saved in `DEMO_NOTES.md`. **Needs:** F8. *(you)*
-- [ ] **D2** Architecture diagram, required by Arc. *(free)*
-- [ ] **D3** README covering: pitch, how it works, provable-fairness replay, matrix hash, v1 trust boundary (off-chain World verify, advisory judge cut), v2 roadmap, sponsor usage per track. *(free)*
+- [x] **D2** Architecture diagram, required by Arc. *(free)* Done: architecture mermaid diagram in the README. Export it to PNG for the submission form if needed.
+- [x] **D3** README covering: pitch, how it works, provable-fairness replay, matrix hash, v1 trust boundary (off-chain World verify, advisory judge cut), v2 roadmap, sponsor usage per track. *(free)* Done: `README.md` with 8 mermaid diagrams, all render-checked in light and dark themes. Update the replay section once M5 lands.
 - [ ] **D4** Record the demo: Selfie Check → agent win → player win → explorer → subgraph query. *(you)*
 - [ ] **D5** ETHGlobal submission: 3 partner prizes (Arc, The Graph, World). *(you)*
 - [ ] **D6** After the deadline, between Sep 16 and 30: deploy to Arc Mainnet and update the submission for the bonuses. *(you)*
