@@ -1,4 +1,4 @@
-# Guessworker Design
+# Legilimens Design
 
 This document describes the whole application: what it is, how it works, how it looks and sounds, and where the mascot lives in it. Its main purpose is to give an illustrator (human or AI) everything needed to design **the Seer**, the mascot. Section 7 is the mascot brief itself; the earlier sections are the context that brief depends on.
 
@@ -6,7 +6,7 @@ This document describes the whole application: what it is, how it works, how it 
 
 ## 1. The app in one paragraph
 
-Guessworker is a fortune-teller's booth on the blockchain. A player stakes 1 USDC and challenges **the Seer**, an AI fortune-teller, to guess their job. The player secretly picks a job and seals it with a cryptographic commitment (shown as a wax seal). The Seer then asks ten questions, which the player answers with **Yes, Probably, Probably not or No**, and names a job.
+Legilimens is a fortune-teller's booth on the blockchain. A player stakes 1 USDC and challenges **the Seer**, an AI fortune-teller, to guess their job. The player secretly picks a job and seals it with a cryptographic commitment (shown as a wax seal). The Seer then asks ten questions, which the player answers with **Yes, Probably, Probably not or No**, and names a job.
 - **The Seer names the exact job:** it keeps the stake.
 - **It names a job in the same family** (Software Developer vs Web Developer): the player gets 90% back.
 - **It misses entirely:** the player gets their stake back plus **half of the pot**, which is the pool built up from every game the Seer won.
@@ -231,7 +231,7 @@ Use one base prompt for the character, then swap the pose line per mood. Keep th
 
 | Part | Summary | Where |
 |---|---|---|
-| Smart contract | `GuessworkerVault` on Arc testnet `0xFca0f5a0918c8288a70339B2774c4Ac4E74D6878`: escrow, commit–reveal, three-tier settlement, pot, Seer rake, World ID daily quota, timeouts | `contracts/src/GuessworkerVault.sol` |
+| Smart contract | `LegilimensVault` on Arc testnet `0xFca0f5a0918c8288a70339B2774c4Ac4E74D6878`: escrow, commit–reveal, three-tier settlement, pot, Seer rake, World ID daily quota, timeouts | `contracts/src/LegilimensVault.sol` |
 | The Seer's brain | Bayesian solver over 66 jobs × 24 traits; picks the most informative question (seeded, so every game is replayable); 10 questions | `web/lib/solver.ts`, `web/lib/matrix.json` |
 | Server | World ID verification, start-game signing, next-question and guess routes; the Seer's wallet submits its guess | `web/app/api/*` |
 | Frontend | Next.js booth UI, props (seal, orb, cauldron, candle, coins) | `web/components/*` |

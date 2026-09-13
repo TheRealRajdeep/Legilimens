@@ -1,5 +1,5 @@
 {
-  "name": "guessworker-subgraph",
+  "name": "legilimens-subgraph",
   "private": true,
   "scripts": {
     "codegen": "graph codegen",

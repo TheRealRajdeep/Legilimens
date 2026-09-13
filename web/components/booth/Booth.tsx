@@ -233,7 +233,7 @@ export function Booth() {
     <main className="min-h-dvh">
       <header className="flex items-center justify-between px-6 py-5 md:px-10">
         <button onClick={() => stage !== "questions" && stage !== "guess" && setStage("landing")} className="brand text-2xl text-parchment">
-          Guessworker
+          Legilimens
         </button>
         <div className="flex items-center gap-5 text-(length:--text-whisper) text-faded">
           {stage !== "landing" ? <Cauldron pot={vault.pot} stake={vault.stake} size="sm" /> : null}

@@ -1,5 +1,5 @@
 specVersion: 1.3.0
-description: Guessworker — games, outcomes and per-occupation stats for the Seer's prior
+description: Legilimens — games, outcomes and per-occupation stats for the Seer's prior
 repository: https://github.com/TheRealRajdeep/ethonline
 schema:
   file: ./schema.graphql
@@ -7,11 +7,11 @@ indexerHints:
   prune: never # the Seer's prior and replays rely on full history
 dataSources:
   - kind: ethereum
-    name: GuessworkerVault
+    name: LegilimensVault
     network: arc-testnet
     source:
       address: "0xFca0f5a0918c8288a70339B2774c4Ac4E74D6878"
-      abi: GuessworkerVault
+      abi: LegilimensVault
       startBlock: 61860113
     mapping:
       kind: ethereum/events
@@ -23,8 +23,8 @@ dataSources:
         - JobStat
         - Vault
       abis:
-        - name: GuessworkerVault
-          file: ./abis/GuessworkerVault.json
+        - name: LegilimensVault
+          file: ./abis/LegilimensVault.json
       eventHandlers:
         - event: PotSeeded(indexed address,uint256,uint256)
           handler: handlePotSeeded

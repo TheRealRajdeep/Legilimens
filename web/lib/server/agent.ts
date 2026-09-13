@@ -43,7 +43,7 @@ export function commitSeed(seed: Hex): Hex {
   return keccak256(encodeAbiParameters([{ type: "bytes32" }], [seed]));
 }
 
-/** Mirrors GuessworkerVault.startDigest: EIP-191 over abi.encode(chainid, vault, player, jobCommit, seedCommit, nullifier, expiry). */
+/** Mirrors LegilimensVault.startDigest: EIP-191 over abi.encode(chainid, vault, player, jobCommit, seedCommit, nullifier, expiry). */
 export async function signStart(args: {
   player: Address;
   jobCommit: Hex;

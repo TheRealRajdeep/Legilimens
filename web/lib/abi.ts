@@ -213,7 +213,7 @@ export const vaultAbi = [
       {
         "name": "status",
         "type": "uint8",
-        "internalType": "enum GuessworkerVault.Status"
+        "internalType": "enum LegilimensVault.Status"
       }
     ],
     "stateMutability": "view"
@@ -567,7 +567,7 @@ export const vaultAbi = [
         "name": "outcome",
         "type": "uint8",
         "indexed": false,
-        "internalType": "enum GuessworkerVault.Outcome"
+        "internalType": "enum LegilimensVault.Outcome"
       },
       {
         "name": "jobCode",

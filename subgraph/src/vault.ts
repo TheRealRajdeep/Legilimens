@@ -1,8 +1,8 @@
 import { Address, BigInt } from "@graphprotocol/graph-ts";
-import { GameStarted, GuessSubmitted, PotSeeded, Settled } from "../generated/GuessworkerVault/GuessworkerVault";
+import { GameStarted, GuessSubmitted, PotSeeded, Settled } from "../generated/LegilimensVault/LegilimensVault";
 import { Game, JobStat, Player, Vault } from "../generated/schema";
 
-// Mirrors GuessworkerVault.Outcome
+// Mirrors LegilimensVault.Outcome
 const OUTCOMES = ["None", "AgentWin", "Push", "PlayerWin", "Forfeit", "Refund"];
 
 function loadVault(address: Address): Vault {

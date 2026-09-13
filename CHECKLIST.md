@@ -1,4 +1,4 @@
-# Guessworker — build checklist
+# Legilimens — build checklist
 
 Source plan: `C:\Users\rajde\.claude\plans\ethglobal-ethonline-2026-hackathon-hashed-wren.md`
 
@@ -101,8 +101,8 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
 
 ## 2. Contract
 
-- [x] **C1** `contracts/src/GuessworkerVault.sol`, per the shared decisions: `startGame`, `submitGuess`, `reveal`, `forfeit`, `refund`, `seedPot`, views, and events `GameStarted` / `GuessSubmitted` / `Settled` / `PotSeeded`. *(me)*
-- [x] **C2** `contracts/test/GuessworkerVault.t.sol` (**20/20 passing**) covering:
+- [x] **C1** `contracts/src/LegilimensVault.sol`, per the shared decisions: `startGame`, `submitGuess`, `reveal`, `forfeit`, `refund`, `seedPot`, views, and events `GameStarted` / `GuessSubmitted` / `Settled` / `PotSeeded`. *(me)*
+- [x] **C2** `contracts/test/LegilimensVault.t.sol` (**20/20 passing**) covering:
   - all 3 outcomes
   - bad salt, bad seed, bad signature, expired signature
   - quota exhausted
@@ -113,7 +113,7 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
   **Needs:** C1. *(me)*
 - [x] **C3** `contracts/script/Deploy.s.sol`: deploy with `agent` and `stake`, then `seedPot{value: 5 ether}`. **Needs:** C1. *(me)*
 - [x] **C4** Deploy to Arc testnet. **Deployed:** vault `0xFca0f5a0918c8288a70339B2774c4Ac4E74D6878`, deploy block `61860113`, Seer/agent `0x7224F3c2E7c97Bbde716d123C3Ad6865AdAA7080`, stake 1 USDC, pot seeded with 5 USDC. Earlier wording of this task: and record the address in `web/.env.local` and `subgraph/subgraph.yaml`. **Needs:** C2 green, E7. *(you + me)*
-- [x] **C5** Export the ABI to `web/lib/abi.ts` and `subgraph/abis/GuessworkerVault.json`. Re-export after any contract change: `jq '.abi' contracts/out/GuessworkerVault.sol/GuessworkerVault.json`. **Needs:** C1. *(me)*
+- [x] **C5** Export the ABI to `web/lib/abi.ts` and `subgraph/abis/LegilimensVault.json`. Re-export after any contract change: `jq '.abi' contracts/out/LegilimensVault.sol/LegilimensVault.json`. **Needs:** C1. *(me)*
 
 ## 3. Server (Next API routes)
 

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @title GuessworkerVault
+/// @title LegilimensVault
 /// @notice Staking game against an occupation-guessing agent. The player commits to a job before play,
 ///         the agent commits to a seed, and the contract alone decides the outcome at reveal.
 /// @dev Stakes are native USDC on Arc (18 decimals).
-contract GuessworkerVault {
+contract LegilimensVault {
     enum Status {
         None,
         Open,

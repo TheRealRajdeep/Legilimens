@@ -2,10 +2,10 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {GuessworkerVault} from "../src/GuessworkerVault.sol";
+import {LegilimensVault} from "../src/LegilimensVault.sol";
 
-contract GuessworkerVaultTest is Test {
-    GuessworkerVault vault;
+contract LegilimensVaultTest is Test {
+    LegilimensVault vault;
 
     uint256 agentKey = 0xA11CE;
     address agent;
@@ -27,7 +27,7 @@ contract GuessworkerVaultTest is Test {
     function setUp() public {
         vm.warp(1_800_000_000);
         agent = vm.addr(agentKey);
-        vault = new GuessworkerVault(agent, STAKE);
+        vault = new LegilimensVault(agent, STAKE);
         vm.deal(address(this), 100 ether);
         vm.deal(player, 100 ether);
         vault.seedPot{value: SEED_POT}();
@@ -118,7 +118,7 @@ contract GuessworkerVaultTest is Test {
         uint256 id = _start(NURSE);
         _guess(id, SOFTWARE_DEV);
 
-        vm.expectRevert(GuessworkerVault.TooEarly.selector);
+        vm.expectRevert(LegilimensVault.TooEarly.selector);
         vault.forfeit(id);
 
         vm.warp(block.timestamp + 31 minutes);
@@ -127,14 +127,14 @@ contract GuessworkerVaultTest is Test {
         assertEq(vault.pot(), SEED_POT + STAKE);
 
         vm.prank(player);
-        vm.expectRevert(GuessworkerVault.WrongStatus.selector);
+        vm.expectRevert(LegilimensVault.WrongStatus.selector);
         vault.reveal(id, NURSE, SALT);
     }
 
     function test_Refund() public {
         uint256 id = _start(NURSE);
 
-        vm.expectRevert(GuessworkerVault.TooEarly.selector);
+        vm.expectRevert(LegilimensVault.TooEarly.selector);
         vault.refund(id);
 
         vm.warp(block.timestamp + 31 minutes);
@@ -144,7 +144,7 @@ contract GuessworkerVaultTest is Test {
         assertEq(vault.pot(), SEED_POT);
 
         vm.prank(agent);
-        vm.expectRevert(GuessworkerVault.WrongStatus.selector);
+        vm.expectRevert(LegilimensVault.WrongStatus.selector);
         vault.submitGuess(id, NURSE, SEED, ANSWERS, 0);
     }
 
@@ -154,7 +154,7 @@ contract GuessworkerVaultTest is Test {
         uint256 id = _start(NURSE);
         _guess(id, SOFTWARE_DEV);
         vm.prank(player);
-        vm.expectRevert(GuessworkerVault.BadCommit.selector);
+        vm.expectRevert(LegilimensVault.BadCommit.selector);
         vault.reveal(id, NURSE, keccak256("wrong"));
     }
 
@@ -162,14 +162,14 @@ contract GuessworkerVaultTest is Test {
         uint256 id = _start(NURSE);
         _guess(id, SOFTWARE_DEV);
         vm.prank(player);
-        vm.expectRevert(GuessworkerVault.BadCommit.selector);
+        vm.expectRevert(LegilimensVault.BadCommit.selector);
         vault.reveal(id, 9112, SALT);
     }
 
     function test_RevertBadSeed() public {
         uint256 id = _start(NURSE);
         vm.prank(agent);
-        vm.expectRevert(GuessworkerVault.BadSeed.selector);
+        vm.expectRevert(LegilimensVault.BadSeed.selector);
         vault.submitGuess(id, NURSE, keccak256("other"), ANSWERS, 0);
     }
 
@@ -179,7 +179,7 @@ contract GuessworkerVaultTest is Test {
         uint256 expiry = block.timestamp + 10 minutes;
         bytes memory sig = _sign(0xBAD, player, jc, sc, NULLIFIER, expiry);
         vm.prank(player);
-        vm.expectRevert(GuessworkerVault.BadSignature.selector);
+        vm.expectRevert(LegilimensVault.BadSignature.selector);
         vault.startGame{value: STAKE}(jc, sc, NULLIFIER, expiry, sig);
     }
 
@@ -190,7 +190,7 @@ contract GuessworkerVaultTest is Test {
         bytes memory sig = _sign(agentKey, player, jc, sc, NULLIFIER, expiry);
         vm.deal(stranger, 10 ether);
         vm.prank(stranger);
-        vm.expectRevert(GuessworkerVault.BadSignature.selector);
+        vm.expectRevert(LegilimensVault.BadSignature.selector);
         vault.startGame{value: STAKE}(jc, sc, NULLIFIER, expiry, sig);
     }
 
@@ -201,7 +201,7 @@ contract GuessworkerVaultTest is Test {
         bytes memory sig = _sign(agentKey, player, jc, sc, NULLIFIER, expiry);
         vm.warp(expiry + 1);
         vm.prank(player);
-        vm.expectRevert(GuessworkerVault.SignatureExpired.selector);
+        vm.expectRevert(LegilimensVault.SignatureExpired.selector);
         vault.startGame{value: STAKE}(jc, sc, NULLIFIER, expiry, sig);
     }
 
@@ -211,7 +211,7 @@ contract GuessworkerVaultTest is Test {
         uint256 expiry = block.timestamp + 10 minutes;
         bytes memory sig = _sign(agentKey, player, jc, sc, NULLIFIER, expiry);
         vm.prank(player);
-        vm.expectRevert(GuessworkerVault.WrongStake.selector);
+        vm.expectRevert(LegilimensVault.WrongStake.selector);
         vault.startGame{value: STAKE / 2}(jc, sc, NULLIFIER, expiry, sig);
     }
 
@@ -226,7 +226,7 @@ contract GuessworkerVaultTest is Test {
         uint256 expiry = block.timestamp + 10 minutes;
         bytes memory sig = _sign(agentKey, player, jc, sc, NULLIFIER, expiry);
         vm.prank(player);
-        vm.expectRevert(GuessworkerVault.QuotaExhausted.selector);
+        vm.expectRevert(LegilimensVault.QuotaExhausted.selector);
         vault.startGame{value: STAKE}(jc, sc, NULLIFIER, expiry, sig);
 
         vm.warp(block.timestamp + 1 days);
@@ -236,14 +236,14 @@ contract GuessworkerVaultTest is Test {
     function test_RevertNonAgentGuess() public {
         uint256 id = _start(NURSE);
         vm.prank(stranger);
-        vm.expectRevert(GuessworkerVault.NotAgent.selector);
+        vm.expectRevert(LegilimensVault.NotAgent.selector);
         vault.submitGuess(id, NURSE, SEED, ANSWERS, 0);
     }
 
     function test_RevertRevealBeforeGuess() public {
         uint256 id = _start(NURSE);
         vm.prank(player);
-        vm.expectRevert(GuessworkerVault.WrongStatus.selector);
+        vm.expectRevert(LegilimensVault.WrongStatus.selector);
         vault.reveal(id, NURSE, SALT);
     }
 
@@ -251,7 +251,7 @@ contract GuessworkerVaultTest is Test {
         uint256 id = _start(NURSE);
         _guess(id, SOFTWARE_DEV);
         vm.prank(agent);
-        vm.expectRevert(GuessworkerVault.WrongStatus.selector);
+        vm.expectRevert(LegilimensVault.WrongStatus.selector);
         vault.submitGuess(id, NURSE, SEED, ANSWERS, 0);
     }
 
@@ -259,7 +259,7 @@ contract GuessworkerVaultTest is Test {
         uint256 id = _start(NURSE);
         _guess(id, SOFTWARE_DEV);
         vm.prank(stranger);
-        vm.expectRevert(GuessworkerVault.NotPlayer.selector);
+        vm.expectRevert(LegilimensVault.NotPlayer.selector);
         vault.reveal(id, NURSE, SALT);
     }
 
@@ -268,7 +268,7 @@ contract GuessworkerVaultTest is Test {
         _guess(id, SOFTWARE_DEV);
         vm.warp(block.timestamp + 31 minutes);
         vm.prank(player);
-        vm.expectRevert(GuessworkerVault.TooLate.selector);
+        vm.expectRevert(LegilimensVault.TooLate.selector);
         vault.reveal(id, NURSE, SALT);
     }
 
@@ -276,7 +276,7 @@ contract GuessworkerVaultTest is Test {
         uint256 id = _start(NURSE);
         vm.warp(block.timestamp + 31 minutes);
         vm.prank(agent);
-        vm.expectRevert(GuessworkerVault.TooLate.selector);
+        vm.expectRevert(LegilimensVault.TooLate.selector);
         vault.submitGuess(id, NURSE, SEED, ANSWERS, 0);
     }
 
