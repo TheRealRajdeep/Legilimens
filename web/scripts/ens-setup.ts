@@ -3,7 +3,7 @@
 //   node scripts/ens-setup.ts
 //
 // Creates, owned by ENS_OWNER_PRIVATE_KEY (the booth owner):
-//   legilimens.eth                  the booth; aliased to the Seer's records
+//   legilimens.eth                  the booth
 //   seer.legilimens.eth             the AI agent's namespace: its wallet, published config and ENSIP-26 agent records
 //   players.legilimens.eth          a subregistry where every player gets <wallet-prefix>.players.legilimens.eth
 // and delegates to the Seer (AGENT_PRIVATE_KEY) only:
@@ -247,12 +247,8 @@ async function main() {
   ];
   await send(ownerWallet, resolver, encodeFunctionData({ abi: resolverAbi, functionName: "multicall", args: [recordCalls] }), `set ${records.length} text + 2 addr records`);
 
-  step(`alias ${BOOTH_NAME} → ${SEER_NAME}`);
-  try {
-    await send(ownerWallet, resolver, encodeFunctionData({ abi: resolverAbi, functionName: "setAlias", args: [dnsEncode(BOOTH_NAME), dnsEncode(SEER_NAME)] }), "setAlias");
-  } catch (err) {
-    console.log(`  · alias skipped: ${(err as Error).message.split("\n")[0]}`);
-  }
+  // No resolver alias from legilimens.eth: ENSv2 aliases whole namespaces, so aliasing the booth to the Seer would
+  // redirect seer.legilimens.eth and every player name too (seer.legilimens.eth → seer.seer.legilimens.eth).
 
   step("verify: the Seer can write a player key, and cannot write anything else");
   const testNode = namehash(`test.${PLAYERS_NAME}`);

@@ -2,12 +2,11 @@
 
 import { useBalance, useReadContracts } from "wagmi";
 import { vaultAbi } from "@/lib/abi";
-import { VAULT_ADDRESS } from "@/lib/config";
-
-const vault = { address: VAULT_ADDRESS, abi: vaultAbi } as const;
+import { useBooth } from "@/components/booth/BoothConfig";
 
 /** Live booth readouts: pot, stake, and the Seer's own ledger. Polls so settlements from other players show up. */
 export function useVault() {
+  const vault = { address: useBooth().vault, abi: vaultAbi } as const;
   const { data, refetch } = useReadContracts({
     contracts: [
       { ...vault, functionName: "pot" },

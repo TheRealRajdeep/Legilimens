@@ -1,5 +1,4 @@
 import { arcTestnet } from "viem/chains";
-import type { Address } from "viem";
 
 // NEXT_PUBLIC_RPC_URL lets local development point at an anvil node started with --chain-id 5042002.
 const rpcOverride = process.env.NEXT_PUBLIC_RPC_URL;
@@ -7,10 +6,7 @@ export const chain = rpcOverride
   ? { ...arcTestnet, rpcUrls: { default: { http: [rpcOverride] } } }
   : arcTestnet;
 
-export const VAULT_ADDRESS = (process.env.NEXT_PUBLIC_VAULT_ADDRESS ?? "0x0000000000000000000000000000000000000000") as Address;
-export const VAULT_DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_VAULT_DEPLOY_BLOCK ?? "0");
-
-export const PUBLIC_SUBGRAPH_URL = process.env.NEXT_PUBLIC_SUBGRAPH_URL ?? "";
+// Vault address, subgraph and the Seer's identity are resolved from ENS at runtime: see lib/server/booth.ts.
 
 export const explorerTx = (hash: string) => `${chain.blockExplorers.default.url}/tx/${hash}`;
 export const explorerAddress = (address: string) => `${chain.blockExplorers.default.url}/address/${address}`;

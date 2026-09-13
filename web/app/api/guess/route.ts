@@ -1,5 +1,6 @@
 import { vaultAbi } from "@/lib/abi";
-import { GameStatus, VAULT_ADDRESS } from "@/lib/config";
+import { GameStatus } from "@/lib/config";
+import { getBooth } from "@/lib/server/booth";
 import { agentAccount, agentWallet, publicClient } from "@/lib/server/agent";
 import { errorResponse, loadGame, parseAnswers, RequestError } from "@/lib/server/game";
 import { finalGuess, jobByCode, packBytes10 } from "@/lib/solver";
@@ -27,9 +28,10 @@ export async function POST(request: Request) {
     const computeFee = BigInt(process.env.AGENT_COMPUTE_FEE_WEI ?? "0");
 
     const account = agentAccount();
+    const { vault } = await getBooth();
     const gasEstimate = await publicClient.estimateContractGas({
       account,
-      address: VAULT_ADDRESS,
+      address: vault,
       abi: vaultAbi,
       functionName: "submitGuess",
       args: [gameId, guess.code, seed, traits, packed, computeFee],
@@ -38,7 +40,7 @@ export async function POST(request: Request) {
     const operatingCost = gasEstimate * gasPrice + computeFee;
 
     const txHash = await agentWallet().writeContract({
-      address: VAULT_ADDRESS,
+      address: vault,
       abi: vaultAbi,
       functionName: "submitGuess",
       args: [gameId, guess.code, seed, traits, packed, operatingCost],

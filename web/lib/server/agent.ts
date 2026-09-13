@@ -1,5 +1,4 @@
 import {
-  createPublicClient,
   createWalletClient,
   encodeAbiParameters,
   http,
@@ -10,15 +9,17 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { vaultAbi } from "@/lib/abi";
-import { chain, VAULT_ADDRESS } from "@/lib/config";
+import { chain } from "@/lib/config";
+import { getBooth } from "./booth";
+import { publicClient } from "./clients";
+
+export { publicClient };
 
 function required(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Missing env ${name}`);
   return value;
 }
-
-export const publicClient = createPublicClient({ chain, transport: http() });
 
 let _account: ReturnType<typeof privateKeyToAccount> | undefined;
 export function agentAccount() {
@@ -62,7 +63,7 @@ export async function signStart(args: {
         { type: "bytes32" },
         { type: "uint256" },
       ],
-      [BigInt(chain.id), VAULT_ADDRESS, args.player, args.jobCommit, args.seedCommit, args.playerKey, args.expiry],
+      [BigInt(chain.id), (await getBooth()).vault, args.player, args.jobCommit, args.seedCommit, args.playerKey, args.expiry],
     ),
   );
   return agentAccount().signMessage({ message: { raw: inner } });
@@ -86,6 +87,6 @@ export type OnchainGame = {
 
 export async function readGame(gameId: bigint): Promise<OnchainGame> {
   const [player, stake, jobCommit, seedCommit, playerKey, startedAt, startBlock, guessedAt, guessCode, traits, answers, status] =
-    await publicClient.readContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: "games", args: [gameId] });
+    await publicClient.readContract({ address: (await getBooth()).vault, abi: vaultAbi, functionName: "games", args: [gameId] });
   return { player, stake, jobCommit, seedCommit, playerKey, startedAt, startBlock, guessedAt, guessCode, traits, answers, status };
 }

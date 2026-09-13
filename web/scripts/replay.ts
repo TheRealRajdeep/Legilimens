@@ -3,8 +3,8 @@
 //   node scripts/replay.ts <gameId>      replay one game
 //   node scripts/replay.ts all           replay every game the Seer has guessed
 //
-// Needs no secrets and no access to the app server. Defaults point at the live Arc testnet deployment;
-// override with RPC_URL, VAULT, DEPLOY_BLOCK and SUBGRAPH_URL.
+// Needs no secrets and no access to the app server. The vault, its deploy block and the subgraph are read from the
+// Seer's ENS name (seer.legilimens.eth on ENSv2 Sepolia); override with SEER_ENS, or VAULT / DEPLOY_BLOCK / SUBGRAPH_URL.
 //
 // What it verifies, per game:
 //   1. the matrix in this repo is the one committed on-chain (MATRIX_HASH)
@@ -16,13 +16,34 @@
 //   5. the answer-fit verdict recorded at settlement matches both this repo's scorer and the contract's fit()
 import { readFileSync } from "node:fs";
 import { createPublicClient, defineChain, encodeAbiParameters, http, keccak256, toBytes, type Hex } from "viem";
+import { sepolia } from "viem/chains";
+import { ENS_V2, SEPOLIA_RPC } from "../lib/ens.ts";
 import { vaultAbi } from "../lib/abi.ts";
 import { JOBS, consistency, finalGuess, jobByCode, priorFrom, replay, unpackAnswers, type Answer, type PriorCounts } from "../lib/solver.ts";
 
 const RPC_URL = process.env.RPC_URL ?? "https://rpc.testnet.arc.network";
-const VAULT = (process.env.VAULT ?? "0x8286DE5954296D78ce2f276424F9dEe3a60bA9D8") as Hex;
-const DEPLOY_BLOCK = BigInt(process.env.DEPLOY_BLOCK ?? "61886523");
-const SUBGRAPH_URL = process.env.SUBGRAPH_URL ?? "https://api.studio.thegraph.com/query/1760267/guessworker/v0.0.2";
+const SEER_ENS = process.env.SEER_ENS ?? "seer.legilimens.eth";
+let VAULT = process.env.VAULT as Hex | undefined;
+let DEPLOY_BLOCK = process.env.DEPLOY_BLOCK ? BigInt(process.env.DEPLOY_BLOCK) : undefined;
+let SUBGRAPH_URL = process.env.SUBGRAPH_URL;
+let ENS_MATRIX_HASH: string | undefined;
+
+/** Reads the booth's published config from the Seer's ENS records. */
+async function resolveFromEns() {
+  const ens = createPublicClient({ chain: sepolia, transport: http(SEPOLIA_RPC) });
+  const text = (key: string) => ens.getEnsText({ name: SEER_ENS, key, universalResolverAddress: ENS_V2.universalResolver });
+  const [vault, block, subgraph, matrixHash] = await Promise.all([
+    text("legilimens.vault"),
+    text("legilimens.vaultDeployBlock"),
+    text("legilimens.subgraph"),
+    text("legilimens.matrixHash"),
+  ]);
+  if (!vault || !block || !subgraph) throw new Error(`${SEER_ENS} is missing booth records`);
+  VAULT ??= vault as Hex;
+  DEPLOY_BLOCK ??= BigInt(block);
+  SUBGRAPH_URL ??= subgraph;
+  ENS_MATRIX_HASH = matrixHash ?? undefined;
+}
 const LOG_CHUNK = 10_000n;
 
 const OUTCOMES = ["None", "AgentWin", "Push", "PlayerWin", "Forfeit", "Refund", "Inconsistent"] as const;
@@ -49,11 +70,11 @@ async function fetchEvents() {
   const latest = await client.getBlockNumber();
   const guesses = new Map<bigint, GuessLog>();
   const settled: SettledLog[] = [];
-  for (let from = DEPLOY_BLOCK; from <= latest; from += LOG_CHUNK) {
+  for (let from = DEPLOY_BLOCK!; from <= latest; from += LOG_CHUNK) {
     const to = from + LOG_CHUNK - 1n > latest ? latest : from + LOG_CHUNK - 1n;
     const [g, s] = await Promise.all([
-      client.getContractEvents({ address: VAULT, abi: vaultAbi, eventName: "GuessSubmitted", fromBlock: from, toBlock: to }),
-      client.getContractEvents({ address: VAULT, abi: vaultAbi, eventName: "Settled", fromBlock: from, toBlock: to }),
+      client.getContractEvents({ address: VAULT!, abi: vaultAbi, eventName: "GuessSubmitted", fromBlock: from, toBlock: to }),
+      client.getContractEvents({ address: VAULT!, abi: vaultAbi, eventName: "Settled", fromBlock: from, toBlock: to }),
     ]);
     for (const e of g) {
       guesses.set(e.args.gameId!, {
@@ -123,7 +144,7 @@ const title = (code: number) => jobByCode(code)?.title ?? `code ${code}`;
 
 async function replayGame(gameId: bigint, events: Awaited<ReturnType<typeof fetchEvents>>): Promise<boolean> {
   const [, , , seedCommit, , , startBlock, , guessCode, , , status] = await client.readContract({
-    address: VAULT,
+    address: VAULT!,
     abi: vaultAbi,
     functionName: "games",
     args: [gameId],
@@ -186,7 +207,7 @@ async function replayGame(gameId: bigint, events: Awaited<ReturnType<typeof fetc
   if (settledLog && settledLog.outcome !== 1 && settledLog.jobCode !== 0) {
     const local = consistency(settledLog.jobCode, published, answers as Answer[]);
     const [chainScore, chainBps] = await client.readContract({
-      address: VAULT,
+      address: VAULT!,
       abi: vaultAbi,
       functionName: "fit",
       args: [settledLog.jobCode, guess.traits, guess.answers],
@@ -217,16 +238,27 @@ async function main() {
     process.exit(2);
   }
 
+  if (!VAULT || DEPLOY_BLOCK === undefined || SUBGRAPH_URL === undefined) {
+    await resolveFromEns();
+    ok(`booth config read from ${SEER_ENS} on ENS`);
+  }
   console.log(paint(90, `vault ${VAULT} on ${RPC_URL}`));
 
   // 1. matrix in this repo is the one the contract was built with
   const localHash = keccak256(toBytes(readFileSync(new URL("../lib/matrix.json", import.meta.url))));
-  const chainHash = await client.readContract({ address: VAULT, abi: vaultAbi, functionName: "MATRIX_HASH" });
+  const chainHash = await client.readContract({ address: VAULT!, abi: vaultAbi, functionName: "MATRIX_HASH" });
   if (localHash !== chainHash) {
     bad(`web/lib/matrix.json (${localHash}) is not the matrix committed on-chain (${chainHash})`);
     process.exit(1);
   }
   ok(`matrix.json matches the on-chain MATRIX_HASH (${JOBS.length} jobs)`);
+  if (ENS_MATRIX_HASH) {
+    if (ENS_MATRIX_HASH.toLowerCase() !== chainHash.toLowerCase()) {
+      bad(`${SEER_ENS} publishes matrix ${ENS_MATRIX_HASH}, but the vault enforces ${chainHash}`);
+      process.exit(1);
+    }
+    ok(`${SEER_ENS} publishes the same matrix hash`);
+  }
 
   const events = await fetchEvents();
   const ids =

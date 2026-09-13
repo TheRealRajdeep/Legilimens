@@ -1,4 +1,5 @@
 import type { PriorCounts } from "@/lib/solver";
+import { getBooth } from "./booth";
 
 // The Seer's prior over occupations is learned from past games indexed by The Graph.
 // Only games settled strictly before this game's start block count, so a replay later
@@ -17,7 +18,7 @@ type SubgraphResponse = {
 export class SubgraphLaggingError extends Error {}
 
 export async function priorCountsAt(startBlock: bigint): Promise<{ counts: PriorCounts; source: "subgraph" | "uniform" }> {
-  const url = process.env.SUBGRAPH_URL;
+  const url = (await getBooth()).subgraph;
   if (!url) return { counts: {}, source: "uniform" };
 
   const key = startBlock.toString();
