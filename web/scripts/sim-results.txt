@@ -1,0 +1,12 @@
+games=3000 questions=10 jobs=66
+agent exact 48.0% | push 7.2% | player wins 44.8%
+
+Hardest jobs for the Seer (use for the player-win demo take):
+  2431 Marketing Specialist     miss 86%
+  2642 Journalist               miss 86%
+  2432 PR Specialist            miss 85%
+  2421 Management Consultant    miss 84%
+  7411 Electrician              miss 83%
+  2519 Software Tester          miss 77%
+  2423 HR Specialist            miss 76%
+  2522 Systems Administrator    miss 72%
