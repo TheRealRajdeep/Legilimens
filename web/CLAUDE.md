@@ -1,0 +1,55 @@
+@AGENTS.md
+
+## Design Context
+
+### Users
+- **ETHGlobal hackathon judges.** They mostly meet the app through a roughly 3-minute demo video, and form an impression in the first 20 seconds.
+- **Crypto-curious players on desktop.** They have a wallet on Arc testnet and the World App on their phone.
+
+**Job to be done.** Stake 1 USDC, prove they're human with World ID, seal their job, answer 10 questions, then watch the Seer guess, break the seal and get paid (or not). Each game is short, dramatic and a one-off. They should understand the stakes (the pot) and the fairness (sealed commitments) without reading docs.
+
+### Brand Personality
+- **Three words:** theatrical, smug, fair.
+- **The Seer** is a showman fortune-teller. Utterly sure it will read you, it gloats when right and grumbles theatrically when wrong. It is also scrupulously honest: seals, commitments and on-chain receipts are part of the act, not hidden in fine print.
+- **Voice:**
+  - Second person, a little archaic, never parody-thick: "Seal your trade. The Seer will not peek."
+  - Short lines.
+  - Money and rules are always stated plainly next to the flourish.
+- **Emotional arc:** intrigue → nervous commitment → suspense → payoff (triumph or smug defeat).
+
+### Aesthetic Direction
+- **Theme:** a candlelit dark study, like a tarot / carnival fortune booth (Zoltar machine, tarot card frames, brass, velvet, wax).
+- **Light:**
+  - Warm ember candlelight, never neon glow.
+  - Light sources are diegetic: the candle (the agent's runway), the cauldron/orb (the pot) and the scrying orb (the guess).
+- **Palette** (dominant ink with parchment surfaces and sparing accents):
+
+  | Token | Hex | Use |
+  |---|---|---|
+  | ink | `#15111F` | room |
+  | soot | `#231C31` | booth wood/velvet |
+  | parchment | `#EDE3CC` | cards, scrolls, primary text on ink |
+  | faded | `#B9AD93` | secondary text |
+  | verdigris | `#3FB6A8` | arcane accent, focus rings, "sealed/verified" |
+  | ember | `#E2A83B` | pot, rewards, primary CTA, candle |
+  | hex | `#C4472D` | wax seals, agent wins |
+  | moss | `#7FA36B` | player wins |
+
+- **Type:**
+  - **Grostel** (display): logo, screen titles, the guess, the pot figure.
+  - **Playfair Display** (text): everything else, 16px minimum.
+  - Fluid `clamp()` scale.
+- **Texture:** subtle paper grain and vignette, tarot-card frames with thin ornamental double rules, and brass hairlines.
+- **Anti-references:**
+  - No DeFi dashboard, no stat-card grids, no hero-metric layout.
+  - No glassmorphism, no purple/cyan gradients, no gradient text, no neon-on-dark, no generic rounded cards with drop shadows.
+
+### Design Principles
+1. **The booth is the interface.** Every on-chain mechanic has a physical prop: commit is a wax seal, reveal breaks the seal, the pot is a cauldron, the agent's runway is a candle, the guess is a scrying orb. Never show a raw mechanic without its prop, and never show a prop without the plain-language fact beside it.
+2. **One thing on stage at a time.** Like Akinator and a fortune machine, each screen has one focal action and one big character. Secondary information whispers in faded text.
+3. **Theatre never hides the money.** Stake, pot, payout rules and tx links are always one glance away and stated plainly. Fairness is part of the show: "sealed", "seed committed" and "verify this game" appear in the UI.
+4. **Motion is the storytelling, not decoration.** Animate state changes (seal stamps, runes ink in, orb clouds and clears, seal cracks, coins pour) with exponential ease-out. No bounce, no ambient wiggle. Everything has a `prefers-reduced-motion` fade alternative.
+5. **Accessible by construction.** WCAG AA contrast (parchment on ink easily passes; check faded and ember on soot), keyboard-operable answers (1–4 hotkeys), visible verdigris focus rings, and live-region announcements for the question and the outcome.
+
+## Project checklist
+See ../CHECKLIST.md for task status and shared technical decisions. Mark tasks as you complete them.
