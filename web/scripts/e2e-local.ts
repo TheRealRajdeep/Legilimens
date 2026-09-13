@@ -9,6 +9,8 @@ import { JOBS, QUESTION_BUDGET, sampleAnswer } from "../lib/solver.ts";
 
 // LIAR=1 answers every question as a different, unrelated job to check the vault forfeits the stake.
 const LIAR = process.env.LIAR === "1";
+// RECORD=1 asks the Seer to inscribe the reading on the player's ENS name after settlement.
+const RECORD = process.env.RECORD === "1";
 
 const APP = process.env.APP_URL ?? "http://localhost:3100";
 const RPC = process.env.RPC_URL ?? "http://127.0.0.1:8546";
@@ -68,6 +70,13 @@ async function play(jobCode: number) {
 
   console.log(`\n#${gameId} sealed ${job.title} → Seer guessed ${guess.title} → ${outcome}, payout ${Number(settled.args.payout) / 1e18} USDC, fit ${Number(settled.args.fitBps) / 100}% (score ${settled.args.fitScore}), pot ${Number(settled.args.potAfter) / 1e18}${LIAR ? " [liar]" : ""}`);
   console.log(`  first questions: ${asked.slice(0, 3).join(" | ")}`);
+  if (RECORD) {
+    const r = await post<{ name: string; readings: number; named: number; close: number; baffled: number; caughtLying: number; lastReading: string; txs: Hex[] }>(
+      "/api/reputation/record",
+      { gameId },
+    );
+    console.log(`  ENS: ${r.name} · readings ${r.readings} · named ${r.named} · close ${r.close} · baffled ${r.baffled} · caught lying ${r.caughtLying} · ${r.lastReading} · ${r.txs.length} tx`);
+  }
 }
 
 const codes = process.argv.slice(2).map(Number);

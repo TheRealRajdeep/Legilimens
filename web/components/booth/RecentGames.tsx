@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { PUBLIC_SUBGRAPH_URL } from "@/lib/config";
+import { useBooth } from "./BoothConfig";
+import { api } from "./api";
 import { shortAddress, usdc } from "@/lib/format";
 import { jobByCode } from "@/lib/solver";
 
@@ -45,6 +46,7 @@ function ago(seconds: string): string {
 
 /** The booth's ledger of past readings, straight from The Graph. */
 export function RecentGames() {
+  const { subgraph: PUBLIC_SUBGRAPH_URL, source } = useBooth();
   const { data, isError, isLoading } = useQuery({
     queryKey: ["recent-games"],
     enabled: Boolean(PUBLIC_SUBGRAPH_URL),
@@ -59,6 +61,15 @@ export function RecentGames() {
       if (!json.data) throw new Error("subgraph unavailable");
       return { stats: json.data.vaults[0] as Stats, games: json.data.games };
     },
+  });
+
+  // Players' ENS names (<wallet-prefix>.players.legilimens.eth), for the ones the Seer has inscribed.
+  const players = [...new Set((data?.games ?? []).map((g) => g.player.id.toLowerCase()))];
+  const { data: names } = useQuery({
+    queryKey: ["player-names", players.join(",")],
+    enabled: source === "ens" && players.length > 0,
+    staleTime: 30_000,
+    queryFn: () => api.names(players),
   });
 
   if (!PUBLIC_SUBGRAPH_URL) return null;
@@ -109,21 +120,37 @@ export function RecentGames() {
                 {verdict.label}
                 {g.payout && g.payout !== "0" ? <span className="text-faded"> · paid {usdc(BigInt(g.payout))}</span> : null}
               </span>
-              <a
-                href={`https://testnet.arcscan.app/tx/${g.settleTx}`}
-                target="_blank"
-                rel="noreferrer"
-                className="col-start-2 text-(length:--text-whisper) text-faded underline decoration-faded/30 underline-offset-4 hover:text-parchment md:col-start-auto"
-                title={g.player.id}
-              >
-                {shortAddress(g.player.id)} · {ago(g.settledAt)} ↗
-              </a>
+              <span className="col-start-2 text-(length:--text-whisper) text-faded md:col-start-auto">
+                {names?.[g.player.id.toLowerCase()]?.exists ? (
+                  <a
+                    href={names[g.player.id.toLowerCase()]!.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={g.player.id}
+                    className="text-verdigris underline decoration-verdigris/30 underline-offset-4 hover:decoration-verdigris"
+                  >
+                    {names[g.player.id.toLowerCase()]!.name.split(".")[0]}.players
+                  </a>
+                ) : (
+                  <span title={g.player.id}>{shortAddress(g.player.id)}</span>
+                )}
+                {" · "}
+                <a
+                  href={`https://testnet.arcscan.app/tx/${g.settleTx}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline decoration-faded/30 underline-offset-4 hover:text-parchment"
+                >
+                  {ago(g.settledAt)} ↗
+                </a>
+              </span>
             </li>
           );
         })}
       </ol>
       <p className="pt-3 text-(length:--text-whisper) text-faded/80">
-        Indexed by The Graph. The Seer reads this ledger before every game to decide what to ask first.
+        Indexed by The Graph. The Seer reads this ledger before every game to decide what to ask first, and inscribes each
+        player&rsquo;s record on their ENS name.
       </p>
     </section>
   );

@@ -11,7 +11,23 @@ export type StartAuth = { seedCommit: `0x${string}`; playerKey: `0x${string}`; e
 export type Question = { step: number; traitIndex: number; traitId: string; text: string; confidence: number; total: number };
 export type GuessResult = { guessCode: number; title: string; confidence?: number; txHash: `0x${string}` | null };
 
+export type Reading = {
+  name: string;
+  url: string;
+  exists: boolean;
+  readings: number;
+  named: number;
+  close: number;
+  baffled: number;
+  caughtLying: number;
+  lastReading: string;
+  txs?: `0x${string}`[];
+};
+
 export const api = {
+  recordReading: (gameId: string) =>
+    call<Reading>("/api/reputation/record", { method: "POST", body: JSON.stringify({ gameId }) }),
+  names: (players: string[]) => call<Record<string, Reading>>(`/api/reputation/names?players=${players.join(",")}`),
   start: (body: { player: string; jobCommit: string }) =>
     call<StartAuth>("/api/start", { method: "POST", body: JSON.stringify(body) }),
   question: (gameId: string, answers: number[]) =>

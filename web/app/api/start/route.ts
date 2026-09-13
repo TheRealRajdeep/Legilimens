@@ -1,8 +1,10 @@
 import { isAddress, isHex, type Address, type Hex } from "viem";
 import { vaultAbi } from "@/lib/abi";
 import { playerKey } from "@/lib/commit";
-import { VAULT_ADDRESS } from "@/lib/config";
+import { LIAR_LIMIT } from "@/lib/ens";
 import { commitSeed, deriveSeed, publicClient, signStart } from "@/lib/server/agent";
+import { getBooth } from "@/lib/server/booth";
+import { readReputation } from "@/lib/server/reputation";
 
 type Body = { player?: string; jobCommit?: string };
 
@@ -19,7 +21,19 @@ export async function POST(request: Request) {
 
   // The signature binds msg.sender, so it is only usable from the player's own wallet.
   const key = playerKey(player);
-  const plays = await publicClient.readContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: "playsToday", args: [key] });
+  const booth = await getBooth();
+  // The Seer remembers liars: its record of this wallet lives on the player's ENS name.
+  if (booth.source === "ens") {
+    const reputation = await readReputation(player as Address).catch(() => null);
+    if (reputation && reputation.caughtLying >= LIAR_LIMIT) {
+      return Response.json(
+        { error: `The Seer remembers ${reputation.name}: caught lying ${reputation.caughtLying} times. It will not read you again.` },
+        { status: 403 },
+      );
+    }
+  }
+
+  const plays = await publicClient.readContract({ address: booth.vault, abi: vaultAbi, functionName: "playsToday", args: [key] });
   if (plays >= MAX_PLAYS_PER_DAY) {
     return Response.json({ error: "The Seer reads each wallet three times a day. Come back tomorrow." }, { status: 429 });
   }

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { parseEventLogs, type Hex } from "viem";
 import { useConnect, useConnection, useConnectors, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 import { vaultAbi } from "@/lib/abi";
-import { chain, GameStatus, Outcome, VAULT_ADDRESS } from "@/lib/config";
+import { chain, GameStatus, Outcome } from "@/lib/config";
+import { ensAppUrl } from "@/lib/ens";
 import { forgetSeal, jobCommitment, latestSeal, newSalt, saveSeal, type SealedGame } from "@/lib/commit";
 import { shortAddress, usdc } from "@/lib/format";
 import { consistency, jobByCode, QUESTION_BUDGET, unpackAnswers, type Job } from "@/lib/solver";
@@ -15,7 +16,8 @@ import { Coins } from "../props/Coins";
 import { ScryingOrb } from "../props/ScryingOrb";
 import { Seer } from "../props/Seer";
 import { WaxSeal } from "../props/WaxSeal";
-import { api, withRetry, type GuessResult, type Question } from "./api";
+import { api, withRetry, type GuessResult, type Question, type Reading } from "./api";
+import { useBooth } from "./BoothConfig";
 import { JobPicker } from "./JobPicker";
 import { QuestionCard } from "./QuestionCard";
 import { RecentGames } from "./RecentGames";
@@ -45,6 +47,7 @@ export function Booth() {
   const write = useWriteContract();
   const client = usePublicClient();
   const vault = useVault();
+  const booth = useBooth();
 
   const [stage, setStage] = useState<Stage>("landing");
   const [job, setJob] = useState<Job>();
@@ -54,6 +57,7 @@ export function Booth() {
   const [question, setQuestion] = useState<Question>();
   const [guess, setGuess] = useState<GuessResult>();
   const [settlement, setSettlement] = useState<Settlement>();
+  const [reading, setReading] = useState<{ status: "writing" | "done" | "error"; data?: Reading; error?: string }>();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +73,7 @@ export function Booth() {
     const seal = latestSeal(address);
     if (!seal) return;
     client
-      .readContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: "games", args: [BigInt(seal.gameId)] })
+      .readContract({ address: booth.vault, abi: vaultAbi, functionName: "games", args: [BigInt(seal.gameId)] })
       .then((g) => {
         const status = g[11];
         const resumedJob = jobByCode(seal.jobCode);
@@ -123,7 +127,7 @@ export function Booth() {
 
       setBusy("Confirm the stake in your wallet…");
       const hash = await write.mutateAsync({
-        address: VAULT_ADDRESS,
+        address: booth.vault,
         abi: vaultAbi,
         functionName: "startGame",
         args: [jobCommit, auth.seedCommit, auth.playerKey, BigInt(auth.expiry), auth.sig],
@@ -195,7 +199,7 @@ export function Booth() {
     try {
       setBusy("Confirm the reveal in your wallet…");
       const hash = await write.mutateAsync({
-        address: VAULT_ADDRESS,
+        address: booth.vault,
         abi: vaultAbi,
         functionName: "reveal",
         args: [BigInt(game.gameId), game.jobCode, game.salt],
@@ -205,7 +209,7 @@ export function Booth() {
       const [settled] = parseEventLogs({ abi: vaultAbi, logs: receipt.logs, eventName: "Settled" });
       if (!settled) throw new Error("Reveal confirmed but no settlement event was found.");
       // Recompute the fit locally from the published transcript to explain the verdict.
-      const g = await client.readContract({ address: VAULT_ADDRESS, abi: vaultAbi, functionName: "games", args: [BigInt(game.gameId)] });
+      const g = await client.readContract({ address: booth.vault, abi: vaultAbi, functionName: "games", args: [BigInt(game.gameId)] });
       const local = consistency(game.jobCode, unpackAnswers(g[9]), unpackAnswers(g[10]));
       setSettlement({
         outcome: settled.args.outcome as Outcome,
@@ -218,6 +222,14 @@ export function Booth() {
       });
       setSealState("cracked");
       forgetSeal(game.gameId);
+      // The Seer writes this reading to the player's ENS name (Sepolia) in the background.
+      if (booth.source === "ens") {
+        setReading({ status: "writing" });
+        api
+          .recordReading(game.gameId)
+          .then((data) => setReading({ status: "done", data }))
+          .catch((err) => setReading({ status: "error", error: err instanceof Error ? err.message : String(err) }));
+      }
       setBusy(null);
       vault.refetch();
       setStage("result");
@@ -231,6 +243,7 @@ export function Booth() {
     setJob(undefined);
     setGuess(undefined);
     setSettlement(undefined);
+    setReading(undefined);
     setQuestion(undefined);
     setStartTx(undefined);
     setSealState("unsealed");
@@ -278,8 +291,9 @@ export function Booth() {
                 How the booth stays honest
               </a>
             </div>
-            <div className="rise pt-4" style={delay(4)}>
+            <div className="rise space-y-4 pt-4" style={delay(4)}>
               <Candle runwayGames={vault.runwayGames} balance={vault.agentBalance} />
+              {booth.source === "ens" ? <SeerIdentity name={booth.seerName} /> : null}
             </div>
           </div>
 
@@ -368,7 +382,7 @@ export function Booth() {
       ) : null}
 
       {stage === "result" && settlement ? (
-        <ResultView settlement={settlement} startTx={startTx} gameId={game?.gameId} onAgain={playAgain} />
+        <ResultView settlement={settlement} startTx={startTx} gameId={game?.gameId} reading={reading} onAgain={playAgain} />
       ) : null}
     </main>
   );
@@ -378,11 +392,13 @@ function ResultView({
   settlement,
   startTx,
   gameId,
+  reading,
   onAgain,
 }: {
   settlement: Settlement;
   startTx?: Hex;
   gameId?: string;
+  reading?: { status: "writing" | "done" | "error"; data?: Reading; error?: string };
   onAgain: () => void;
 }) {
   const sealed = jobByCode(settlement.jobCode)?.title ?? "your trade";
@@ -442,9 +458,49 @@ function ResultView({
           <TxLink hash={settlement.txHash} label="Reveal & payout" />
           {gameId ? <span className="text-faded">Game #{gameId} · replay it with the published seed and answers</span> : null}
         </div>
+        {reading ? <ReadingNote reading={reading} /> : null}
         <Button onClick={onAgain}>Challenge again</Button>
       </div>
     </section>
+  );
+}
+
+/** Where the Seer wrote this reading: the player's own ENS name. */
+function ReadingNote({ reading }: { reading: { status: "writing" | "done" | "error"; data?: Reading; error?: string } }) {
+  if (reading.status === "writing") {
+    return <p className="text-(length:--text-whisper) italic text-faded">The Seer is inscribing this reading on your ENS name…</p>;
+  }
+  if (reading.status === "error" || !reading.data) {
+    return <p className="text-(length:--text-whisper) text-faded">The reading couldn&rsquo;t be inscribed on ENS just now ({reading.error}).</p>;
+  }
+  const r = reading.data;
+  return (
+    <div className="max-w-md space-y-1 border-t border-ember/20 pt-4 text-(length:--text-whisper)">
+      <p className="text-parchment">
+        Inscribed on{" "}
+        <a href={r.url} target="_blank" rel="noreferrer" className="text-verdigris underline decoration-verdigris/40 underline-offset-4 hover:decoration-verdigris">
+          {r.name} ↗
+        </a>
+      </p>
+      <p className="text-faded">
+        {r.readings} reading{r.readings === 1 ? "" : "s"} · named {r.named} · close {r.close} · baffled {r.baffled}
+        {r.caughtLying ? <span className="text-hex"> · caught lying {r.caughtLying}</span> : null}
+      </p>
+      <p className="text-faded/80">You own this name. Only the Seer can write its record, so it can&rsquo;t be forged.</p>
+    </div>
+  );
+}
+
+/** The Seer's ENS identity: its vault, knowledge and ledger are all published there. */
+function SeerIdentity({ name }: { name: string }) {
+  return (
+    <p className="max-w-md text-(length:--text-whisper) text-faded">
+      The Seer speaks as{" "}
+      <a href={ensAppUrl(name)} target="_blank" rel="noreferrer" className="text-verdigris underline decoration-verdigris/40 underline-offset-4 hover:decoration-verdigris">
+        {name} ↗
+      </a>
+      . Its vault, its knowledge and its ledger are published on that name, and this booth reads them from there.
+    </p>
   );
 }
 
