@@ -18,6 +18,7 @@ import { WaxSeal } from "../props/WaxSeal";
 import { api, withRetry, type Eligibility, type GuessResult, type Question } from "./api";
 import { JobPicker } from "./JobPicker";
 import { QuestionCard } from "./QuestionCard";
+import { RecentGames } from "./RecentGames";
 import { Button, ErrorNote, Scroll, TxLink, Whisper } from "./ui";
 import { WorldGate } from "./WorldGate";
 
@@ -297,6 +298,8 @@ export function Booth() {
           </dl>
         </section>
       ) : null}
+
+      {stage === "landing" || stage === "result" ? <RecentGames /> : null}
 
       {stage === "verify" && address ? (
         <WorldGate
