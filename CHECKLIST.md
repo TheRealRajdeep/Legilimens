@@ -68,7 +68,7 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
 - [x] **E4** Check Grostel glyph coverage: nothing missing, 397 glyphs. *(me)*
 - [x] **E5** Scaffold Next.js app in `web/`. *(me)*
 - [x] **E6** Scaffold Foundry project in `contracts/`. *(me)*
-- [ ] **E7** Create two wallets, **player** and **agent**, and fund both from the Circle faucet. The agent needs gas, and the deployer needs about 6 USDC for the pot seed. *(you)*
+- [x] **E7** (Seer `0x7224â€¦7080` and player `0x4F85â€¦102b`, 20 USDC each) Create two wallets, **player** and **agent**, and fund both from the Circle faucet. The agent needs gas, and the deployer needs about 6 USDC for the pot seed. *(you)*
 - [ ] **E8a — URGENT BLOCKER** Request **Selfie Check (Beta)** access for the World app. It is required even for sandbox testing ([docs](https://docs.world.org/world-id/sandbox/testing-selfie-check)).
   - Ask the World sponsor in the ETHOnline Discord or partner channel, or email developers@toolsforhumanity.com.
   - The wait is outside our control, so do this first.
@@ -112,7 +112,7 @@ Every task lists what it depends on (**Needs**) and the files it touches. An age
 
   **Needs:** C1. *(me)*
 - [x] **C3** `contracts/script/Deploy.s.sol`: deploy with `agent` and `stake`, then `seedPot{value: 5 ether}`. **Needs:** C1. *(me)*
-- [ ] **C4** Deploy to Arc testnet and record the address in `web/.env.local` and `subgraph/subgraph.yaml`. **Needs:** C2 green, E7. *(you + me)*
+- [x] **C4** Deploy to Arc testnet. **Deployed:** vault `0xFca0f5a0918c8288a70339B2774c4Ac4E74D6878`, deploy block `61860113`, Seer/agent `0x7224F3c2E7c97Bbde716d123C3Ad6865AdAA7080`, stake 1 USDC, pot seeded with 5 USDC. Earlier wording of this task: and record the address in `web/.env.local` and `subgraph/subgraph.yaml`. **Needs:** C2 green, E7. *(you + me)*
 - [x] **C5** Export the ABI to `web/lib/abi.ts` and `subgraph/abis/GuessworkerVault.json`. Re-export after any contract change: `jq '.abi' contracts/out/GuessworkerVault.sol/GuessworkerVault.json`. **Needs:** C1. *(me)*
 
 ## 3. Server (Next API routes)
