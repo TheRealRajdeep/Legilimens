@@ -235,7 +235,7 @@ export function Booth() {
           Guessworker
         </button>
         <div className="flex items-center gap-5 text-(length:--text-whisper) text-faded">
-          {stage !== "landing" ? <Cauldron pot={vault.pot} size="sm" /> : null}
+          {stage !== "landing" ? <Cauldron pot={vault.pot} stake={vault.stake} size="sm" /> : null}
           {address ? <span title={address}>{shortAddress(address)}</span> : null}
         </div>
       </header>
@@ -273,9 +273,9 @@ export function Booth() {
           </div>
 
           <div className="rise flex flex-col items-center gap-2" style={delay(2)}>
-            <Seer mood="idle" size={240} />
-            <div className="-mt-6">
-              <Cauldron pot={vault.pot} />
+            <Seer mood="idle" size={250} />
+            <div className="-mt-16 relative z-10">
+              <Cauldron pot={vault.pot} stake={vault.stake} />
             </div>
           </div>
 
