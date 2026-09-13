@@ -1,0 +1,37 @@
+specVersion: 1.3.0
+description: Guessworker — games, outcomes and per-occupation stats for the Seer's prior
+repository: https://github.com/TheRealRajdeep/ethonline
+schema:
+  file: ./schema.graphql
+indexerHints:
+  prune: never # the Seer's prior and replays rely on full history
+dataSources:
+  - kind: ethereum
+    name: GuessworkerVault
+    network: arc-testnet
+    source:
+      address: "0xFca0f5a0918c8288a70339B2774c4Ac4E74D6878"
+      abi: GuessworkerVault
+      startBlock: 61860113
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Game
+        - Player
+        - JobStat
+        - Vault
+      abis:
+        - name: GuessworkerVault
+          file: ./abis/GuessworkerVault.json
+      eventHandlers:
+        - event: PotSeeded(indexed address,uint256,uint256)
+          handler: handlePotSeeded
+        - event: GameStarted(indexed uint256,indexed address,indexed bytes32,uint256,uint256)
+          handler: handleGameStarted
+        - event: GuessSubmitted(indexed uint256,uint16,bytes32,bytes10,uint256)
+          handler: handleGuessSubmitted
+        - event: Settled(indexed uint256,uint8,uint16,uint16,uint256,uint256,uint256)
+          handler: handleSettled
+      file: ./src/vault.ts

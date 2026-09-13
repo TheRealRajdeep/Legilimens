@@ -1,0 +1,85 @@
+enum GameStatus {
+  Open
+  Guessed
+  Settled
+}
+
+enum Outcome {
+  None
+  AgentWin
+  Push
+  PlayerWin
+  Forfeit
+  Refund
+}
+
+"""
+One challenge against the Seer. The Seer's solver reads settled games (settledBlock < a game's startBlock)
+to build its prior over occupations, so every game's prior can be reconstructed exactly later.
+"""
+type Game @entity(immutable: false) {
+  "gameId as a decimal string"
+  id: ID!
+  gameId: BigInt!
+  player: Player!
+  nullifierHash: Bytes!
+  stake: BigInt!
+  status: GameStatus!
+
+  startBlock: BigInt!
+  startedAt: BigInt!
+  startTx: Bytes!
+
+  "Set when the Seer submits its guess. seed + answers + matrix + prior replay the whole game."
+  guessCode: Int
+  seed: Bytes
+  answers: Bytes
+  operatingCost: BigInt
+  guessedAt: BigInt
+  guessTx: Bytes
+
+  "Set at settlement. jobCode is 0 for Forfeit and Refund (the job was never revealed)."
+  outcome: Outcome!
+  jobCode: Int
+  payout: BigInt
+  potAfter: BigInt
+  settledBlock: BigInt
+  settledAt: BigInt
+  settleTx: Bytes
+}
+
+type Player @entity(immutable: false) {
+  "wallet address"
+  id: Bytes!
+  games: [Game!]! @derivedFrom(field: "player")
+  gamesPlayed: Int!
+  wins: Int!
+  pushes: Int!
+  losses: Int!
+  totalStaked: BigInt!
+  totalPaidOut: BigInt!
+}
+
+"How the Seer fares against each occupation. id = job code."
+type JobStat @entity(immutable: false) {
+  id: ID!
+  jobCode: Int!
+  revealed: Int!
+  agentWins: Int!
+  pushes: Int!
+  playerWins: Int!
+}
+
+"Singleton (id = vault address) with live booth totals."
+type Vault @entity(immutable: false) {
+  id: Bytes!
+  pot: BigInt!
+  agentRevenue: BigInt!
+  agentOperatingCost: BigInt!
+  gamesStarted: Int!
+  gamesSettled: Int!
+  agentWins: Int!
+  pushes: Int!
+  playerWins: Int!
+  totalPaidOut: BigInt!
+}
