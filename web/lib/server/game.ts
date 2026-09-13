@@ -34,12 +34,16 @@ export async function loadGame(gameIdRaw: unknown): Promise<{ gameId: bigint; ga
   if (game.status === GameStatus.None) throw new RequestError("game not found", 404);
 
   const seed = deriveSeed(game.jobCommit, game.nullifierHash);
-  try {
-    const { counts } = await priorCountsAt(game.startBlock);
-    return { gameId, game, seed, prior: priorFrom(counts) };
-  } catch (err) {
-    if (err instanceof SubgraphLaggingError) throw new RequestError("The Seer is still reading the archives, retry in a moment", 503);
-    throw err;
+  // The indexer usually trails the chain by a few blocks; wait it out here rather than bouncing every client.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const { counts } = await priorCountsAt(game.startBlock);
+      return { gameId, game, seed, prior: priorFrom(counts) };
+    } catch (err) {
+      if (!(err instanceof SubgraphLaggingError)) throw err;
+      if (attempt >= 12) throw new RequestError("The Seer is still reading the archives, retry in a moment", 503);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
   }
 }
 
