@@ -10,9 +10,9 @@ dataSources:
     name: LegilimensVault
     network: arc-testnet
     source:
-      address: "0xFca0f5a0918c8288a70339B2774c4Ac4E74D6878"
+      address: "0x8286DE5954296D78ce2f276424F9dEe3a60bA9D8"
       abi: LegilimensVault
-      startBlock: 61860113
+      startBlock: 61886523
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
