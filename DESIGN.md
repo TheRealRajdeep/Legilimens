@@ -10,6 +10,7 @@ Legilimens is a fortune-teller's booth on the blockchain. A player stakes 1 USDC
 - **The Seer names the exact job:** it keeps the stake.
 - **It names a job in the same family** (Software Developer vs Web Developer): the player gets 90% back.
 - **It misses entirely:** the player gets their stake back plus **half of the pot**, which is the pool built up from every game the Seer won.
+- **But only if the answers were honest.** When the seal breaks, the contract checks that the ten answers actually fit the sealed job. A player who seals one job and answers as another forfeits the stake (*"The seal does not lie."*), and weaker fits receive a smaller share of the prize.
 
 Every rule is enforced by a smart contract on Arc testnet, so neither side can cheat.
 
@@ -231,7 +232,7 @@ Use one base prompt for the character, then swap the pose line per mood. Keep th
 
 | Part | Summary | Where |
 |---|---|---|
-| Smart contract | `LegilimensVault` on Arc testnet `0xFca0f5a0918c8288a70339B2774c4Ac4E74D6878`: escrow, commit–reveal, three-tier settlement, pot, Seer rake, World ID daily quota, timeouts | `contracts/src/LegilimensVault.sol` |
+| Smart contract | `LegilimensVault` on Arc testnet `0x8286DE5954296D78ce2f276424F9dEe3a60bA9D8`: escrow, commit–reveal, three-tier settlement, pot, Seer rake, World ID daily quota, timeouts | `contracts/src/LegilimensVault.sol` |
 | The Seer's brain | Bayesian solver over 66 jobs × 24 traits; picks the most informative question (seeded, so every game is replayable); 10 questions | `web/lib/solver.ts`, `web/lib/matrix.json` |
 | Server | World ID verification, start-game signing, next-question and guess routes; the Seer's wallet submits its guess | `web/app/api/*` |
 | Frontend | Next.js booth UI, props (seal, orb, cauldron, candle, coins) | `web/components/*` |
